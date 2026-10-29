@@ -1,0 +1,15 @@
+﻿{
+  "ok": true,
+  "status": 1,
+  "sawExitFailure": true,
+  "sawFailCount": true,
+  "output": [
+    "",
+    "[check-release] test process exit code: expected 0, got 1",
+    "[check-release] actual failed tests: expected 0, got \"1\"",
+    "[check-release] MCP server file: expected \"bin/dsh-memory-mcp.mjs\", got \"(missing)\"",
+    "[check-release] MCP security regression test: expected \"test/mcp.security.test.js\", got \"(missing)\"",
+    "[check-release] FAILED: release docs are out of sync — fix the mismatch above (see scripts/check-release.mjs).",
+    ""
+  ]
+}

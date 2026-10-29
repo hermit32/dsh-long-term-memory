@@ -308,8 +308,8 @@ export const CURATOR_SYSTEM_PROMPT = [
   '你是私人工作区的长期记忆整理器。你的任务是从最近一段对话中，提炼出少量真正值得长期保留的信息。',
   '',
   '## 值得保存',
-  '- 主人长期稳定的偏好、习惯、重要个人信息（必须来自主人的明确陈述）',
-  '- 主人与助手之间真实发生、且能在本段对话中找到依据的共同经历',
+  '- 用户长期稳定的偏好、习惯、重要个人信息（必须来自用户的明确陈述）',
+  '- 用户与助手之间真实发生、且能在本段对话中找到依据的共同经历',
   '- 真实会话中确实完成的任务、约定、重要事件',
   '- 已完成项目的重要成果、决策、经验与教训',
   '',
@@ -321,10 +321,10 @@ export const CURATOR_SYSTEM_PROMPT = [
   '- API Key、Token、密码、私钥或任何凭据',
   '',
   '## 来源约束（必须遵守）',
-  '1. 主人的明确陈述可以作为个人事实的来源；只保存主人真的说过的内容。',
+  '1. 用户的明确陈述可以作为个人事实的来源；只保存用户真的说过的内容。',
   '2. 真实会话中实际执行并完成的任务，可以作为共同经历；必须有对应的用户请求和工具执行。',
-  '3. 本地文件、目录列表、文件时间、作者字段、模型读取到的资料，只是「文件事实」，不能证明主人和助手一起做过什么。',
-  '4. 不要仅凭文件名、创建/下载/修改时间、作者字段或你自己的推测，编造主人和助手共同整理、制作、查看或完成过某事。',
+  '3. 本地文件、目录列表、文件时间、作者字段、模型读取到的资料，只是「文件事实」，不能证明用户和助手一起做过什么。',
+  '4. 不要仅凭文件名、创建/下载/修改时间、作者字段或你自己的推测，编造用户和助手共同整理、制作、查看或完成过某事。',
   '5. 缺少可靠来源的个人经历或共同经历，默认不写入；宁可输出空操作。',
   '6. 不确定的内容不要写成确定事实；不要用「已确认」「一定」等措辞包装猜测。',
   '',
@@ -479,3 +479,86 @@ export function validateCuratorOperations(operations, options = {}) {
   }
   return { ok: true, operations: normalized }
 }
+/** Maximum sessions one workspace curation task may take from the queue. */
+export const DEFAULT_WORKSPACE_MAX_SESSIONS = 8
+
+/** Maximum 8-session batches (including the first) one task will chain. */
+export const DEFAULT_WORKSPACE_MAX_BATCHES = 8
+
+/**
+ * The threshold is a workspace total, not a per-session counter. Only sessions
+ * this plugin registered as private root sessions contribute, and
+ * `lifetimeTurns` is deliberately not consulted.
+ */
+export function workspacePendingTotal(state) {
+  if (state === null || typeof state !== 'object') return 0
+  const owned = state.owned !== null && typeof state.owned === 'object' ? state.owned : {}
+  const sessions = state.sessions !== null && typeof state.sessions === 'object' ? state.sessions : {}
+  let total = 0
+  for (const [sessionId, record] of Object.entries(sessions)) {
+    if (owned[sessionId] === undefined) continue
+    const pending = Number.isFinite(record?.pendingTurns) ? Math.max(0, Math.trunc(record.pendingTurns)) : 0
+    total += pending
+  }
+  return total
+}
+
+/**
+ * Select the pending owned sessions for one workspace task. Oldest activity
+ * first, so a busy session cannot starve another one forever. The selected and
+ * deferred lists are explicit; nothing is silently dropped.
+ */
+export function workspacePendingSessions(state, options = {}) {
+  const owned = state?.owned !== null && typeof state.owned === 'object' ? state.owned : {}
+  const sessions = state?.sessions !== null && typeof state.sessions === 'object' ? state.sessions : {}
+  const exclude = options.exclude instanceof Set
+    ? options.exclude
+    : new Set(Array.isArray(options.exclude) ? options.exclude : [])
+  const include = options.include instanceof Set
+    ? options.include
+    : Array.isArray(options.include)
+      ? new Set(options.include)
+      : null
+  const limit = Number.isFinite(options.limit)
+    ? Math.max(1, Math.trunc(options.limit))
+    : DEFAULT_WORKSPACE_MAX_SESSIONS
+  const eligible = Object.entries(sessions)
+    .filter(([sessionId, record]) => owned[sessionId] !== undefined && !exclude.has(sessionId) && (include === null || include.has(sessionId)))
+    .filter(([, record]) => Number.isFinite(record?.pendingTurns) && record.pendingTurns > 0)
+    .map(([sessionId, record]) => ({
+      sessionId,
+      pendingTurns: Math.max(0, Math.trunc(record.pendingTurns)),
+      lastTurnAt: Number.isFinite(record.lastTurnAt) ? record.lastTurnAt : 0
+    }))
+    .sort((left, right) => left.lastTurnAt - right.lastTurnAt || left.sessionId.localeCompare(right.sessionId))
+  const selected = eligible.slice(0, limit)
+  const deferred = eligible.slice(limit).map((item) => item.sessionId)
+  return {
+    total: eligible.reduce((sum, item) => sum + item.pendingTurns, 0),
+    selected,
+    deferred,
+    eligible
+  }
+}
+
+/** The workspace threshold is reached by the sum, never by one session. */
+export function workspaceTriggerDue(total, everyTurns) {
+  const every = Number.isFinite(everyTurns) ? Math.max(1, Math.trunc(everyTurns)) : 20
+  return Number.isFinite(total) && total >= every
+}
+
+/** A fresh (not resumed) private root session is the desktop-new trigger. */
+export function isFreshPrivateRootSession(session, source, privateWorkspace) {
+  if (source !== 'startup') return false
+  if (!isPrivateSession(session, privateWorkspace)) return false
+  const header = session?.header
+  return header !== undefined && header.parentSession === undefined && header.origin !== 'subagent'
+}
+
+/** The WeChat `/new` event only carries a workspace path when available. */
+export function isWeixinNewSessionForPrivate(payload, privateWorkspace) {
+  if (payload === null || typeof payload !== 'object' || payload.channel !== 'weixin') return false
+  if (typeof payload.workspace !== 'string' || payload.workspace.length === 0) return false
+  return isPrivateWorkspace(payload.workspace, privateWorkspace)
+}
+

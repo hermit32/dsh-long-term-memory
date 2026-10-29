@@ -104,7 +104,7 @@ curator 的 `add/update/merge` 输出仍只允许这三种操作。Host 在写�
 3. 选最佳匹配行：用户行 → `user_statement`；写类工具行（write/edit/pwsh 的写命令等）
    且本批有真实人类交互 → `session_task`；只读工具/文件 → `file_fact`；助手自述 →
    `assistant_claim`（拒绝作为 add 来源）；
-4. 涉及主人个人事实必须是 `user_statement`；涉及「一起/共同/陪主人」等共同经历
+4. 涉及用户个人事实必须是 `user_statement`；涉及「一起/共同/陪用户」等共同经历
    必须是 `user_statement` 或 `session_task`；仅文件列表/助手推测 → 拒绝；
 5. 通过的内容才写入 raw，并记录来源。
 

@@ -136,8 +136,8 @@ test('console parameter defaults match the task baseline and keep 20 turns', () 
 test('console snapshot lists entries, unknown provenance, summary and curator state', async () => {
   const fixture = makeFixture()
   try {
-    const first = { content: '主人偏好使用 PowerShell 脚本。', tags: ['preference'], importance: 2 }
-    await seed(fixture.store, [first], '## 偏好\n\n- 主人偏好使用 PowerShell 脚本。')
+    const first = { content: '用户偏好使用 PowerShell 脚本。', tags: ['preference'], importance: 2 }
+    await seed(fixture.store, [first], '## 偏好\n\n- 用户偏好使用 PowerShell 脚本。')
     const provenance = await fixture.store.readProvenance()
     provenance.entries[first.id] = {
       sourceType: 'user_statement',
@@ -185,8 +185,8 @@ test('provenance is honestly unknown for old entries', async () => {
 test('delete requires confirmation, removes the summary bullet immediately, and can be restored', async () => {
   const fixture = makeFixture()
   try {
-    const entry = { content: '主人偏好使用 PowerShell 脚本。', tags: ['preference'], importance: 2 }
-    await seed(fixture.store, [entry], '## 偏好\n\n- 主人偏好使用 PowerShell 脚本。\n\n## Verification notes\n\n- (no active entries)')
+    const entry = { content: '用户偏好使用 PowerShell 脚本。', tags: ['preference'], importance: 2 }
+    await seed(fixture.store, [entry], '## 偏好\n\n- 用户偏好使用 PowerShell 脚本。\n\n## Verification notes\n\n- (no active entries)')
     await assert.rejects(
       () => fixture.service.deleteEntry({ id: entry.id }),
       (error) => error instanceof ConsoleError && error.code === 'confirm-required'
@@ -227,20 +227,20 @@ test('delete requires confirmation, removes the summary bullet immediately, and 
 test('update rejects a stale revision, scrubs the old bullet, and writes a manual note', async () => {
   const fixture = makeFixture()
   try {
-    const entry = { content: '主人偏好使用浅色主题。', tags: ['preference'], importance: 1 }
-    await seed(fixture.store, [entry], '## 偏好\n\n- 主人偏好使用浅色主题。\n\n## Verification notes\n\n- (no active entries)')
+    const entry = { content: '用户偏好使用浅色主题。', tags: ['preference'], importance: 1 }
+    await seed(fixture.store, [entry], '## 偏好\n\n- 用户偏好使用浅色主题。\n\n## Verification notes\n\n- (no active entries)')
     await assert.rejects(
-      () => fixture.service.updateEntry({ id: entry.id, content: '主人偏好使用深色主题。', expectedEntryRevision: 'bad' }),
+      () => fixture.service.updateEntry({ id: entry.id, content: '用户偏好使用深色主题。', expectedEntryRevision: 'bad' }),
       (error) => error.code === 'entry-conflict'
     )
     const result = await fixture.service.updateEntry({
       id: entry.id,
-      content: '主人偏好使用深色主题。',
+      content: '用户偏好使用深色主题。',
       tags: ['preference'],
       importance: 2,
       expectedEntryRevision: memoryEntryRevision(entry)
     })
-    assert.equal(result.entry.content, '主人偏好使用深色主题。')
+    assert.equal(result.entry.content, '用户偏好使用深色主题。')
     const summary = await fixture.store.readSummary()
     assert.doesNotMatch(summary, /浅色主题/)
     assert.match(summary, /深色主题/)
@@ -256,13 +256,13 @@ test('add rejects credentials and duplicates unless explicitly allowed', async (
       () => fixture.service.addEntry({ content: 'key is sk-abcdefghijklmnopqrstuvwx' }),
       (error) => error.code === 'credential-rejected'
     )
-    const first = await fixture.service.addEntry({ content: '主人的常用编辑器是 VS Code。', tags: ['preference'] })
+    const first = await fixture.service.addEntry({ content: '用户的常用编辑器是 VS Code。', tags: ['preference'] })
     assert.equal(first.ok, true)
     await assert.rejects(
-      () => fixture.service.addEntry({ content: '主人的常用编辑器是 VS Code。' }),
+      () => fixture.service.addEntry({ content: '用户的常用编辑器是 VS Code。' }),
       (error) => error.code === 'duplicate-entry'
     )
-    const second = await fixture.service.addEntry({ content: '主人的常用编辑器是 VS Code。', allowDuplicate: true })
+    const second = await fixture.service.addEntry({ content: '用户的常用编辑器是 VS Code。', allowDuplicate: true })
     assert.equal(second.ok, true)
   } finally {
     rmSync(fixture.dir, { recursive: true, force: true })

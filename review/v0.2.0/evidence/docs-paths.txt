@@ -1,0 +1,5 @@
+﻿required_files: 9
+missing: 0
+config_template_exists: true
+readme_standalone_paths: true
+result: PASS

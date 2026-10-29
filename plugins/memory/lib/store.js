@@ -326,7 +326,8 @@ export function normalizeTags(tags, { maxTags = DEFAULT_MAX_TAGS, maxTagChars = 
       .slice(0, maxTags)
     : []
   for (const tag of normalized) {
-    if (tag.length > maxTagChars) throw new Error(`tag exceeds ${maxTagChars} characters: ${tag}`)
+    // Never echo the caller's value: a tag may itself contain a credential.
+    if (tag.length > maxTagChars) throw new Error(`tag exceeds ${maxTagChars} characters`)
   }
   return normalized
 }
@@ -343,6 +344,38 @@ export function validateEntryInput(content, tags, options = {}) {
     content: validateContent(content, options),
     tags: normalizeTags(tags, options)
   }
+}
+
+/**
+ * The single merge plan used by both the MCP pre-write check and MemoryStore.
+ *
+ * `targets` MUST be the participating entries in raw-file (storage) order.
+ * Rules, applied once here and nowhere else:
+ *   - the surviving id/ts is `keepId`; other entries are removed;
+ *   - content is the longest `normalizedContent`, evaluated as
+ *     `[survivor, ...storage order]` with strict `>` (first winner keeps it);
+ *   - tags are the union in storage order, then normalized (16-tag cap);
+ *   - importance is the maximum.
+ *
+ * Callers must not re-implement these rules: a different target order or a
+ * different tie-break produces a different persisted object.
+ */
+export function planMergeEntries(targets, keepId) {
+  const list = Array.isArray(targets) ? targets : []
+  if (list.length < 2) throw new Error('memory: merge requires at least two distinct entry ids')
+  const keep = String(keepId)
+  const survivor = list.find((entry) => entry.id === keep)
+  if (survivor === undefined) throw new Error('memory: keepId must be one of ids')
+  const bestContent = list.reduce((best, entry) => (
+    normalizedContent(entry.content).length > normalizedContent(best.content).length ? entry : best
+  ), survivor)
+  const kept = {
+    ...survivor,
+    content: bestContent.content,
+    tags: normalizeTags([...new Set(list.flatMap((entry) => (Array.isArray(entry.tags) ? entry.tags : [])))]),
+    importance: Math.max(...list.map((entry) => (Number.isFinite(entry.importance) ? entry.importance : 1)))
+  }
+  return { kept, removed: list.filter((entry) => entry.id !== keep) }
 }
 
 /**
@@ -983,7 +1016,7 @@ export class MemoryStore {
     await this.ensure()
     const entries = await this.readRawEntries()
     const target = entries.find((entry) => entry.id === id)
-    if (target === undefined) throw new Error(`memory: no entry with id ${id}`)
+    if (target === undefined) throw new Error('memory: no entry with the requested id')
     if (content !== undefined) target.content = String(content).trim()
     if (tags !== undefined) target.tags = tags
     if (importance !== undefined) target.importance = Math.min(3, Math.max(0, Math.trunc(importance)))
@@ -996,7 +1029,7 @@ export class MemoryStore {
     await this.ensure()
     const entries = await this.readRawEntries()
     const target = entries.find((entry) => entry.id === id)
-    if (target === undefined) throw new Error(`memory: no entry with id ${id}`)
+    if (target === undefined) throw new Error('memory: no entry with the requested id')
     const next = entries.filter((entry) => entry.id !== id)
     await this.writeAtomic(RAW_FILE, serializeRaw(next))
     this.rawCache = null
@@ -1004,12 +1037,15 @@ export class MemoryStore {
   }
 
   /**
-   * Merge active raw entries into one record. `keepId` decides which id
-   * survives; the longest normalized content wins, tags are unioned, and the
-   * highest importance is kept. Returns the surviving entry and the removed
-   * snapshots so the caller can journal update/delete events.
+   * Merge active raw entries into one record. The complete result is computed
+   * once by `planMergeEntries` from the raw-file order; `options.validate(plan,
+   * targets)` may throw to veto the write. It runs after the plan is known and
+   * before `writeAtomic`, so callers never have to duplicate the merge rules.
+   *
+   * Returns `{ kept, removed }` (`plan`), so the caller can journal exactly the
+   * objects that were written.
    */
-  async mergeRawEntries(ids, keepId) {
+  async mergeRawEntries(ids, keepId, options = {}) {
     await this.ensure()
     const requested = [...new Set((Array.isArray(ids) ? ids : []).map((id) => String(id)))]
     if (requested.length < 2) throw new Error('memory: merge requires at least two distinct entry ids')
@@ -1018,23 +1054,14 @@ export class MemoryStore {
     const entries = await this.readRawEntries()
     const targets = entries.filter((entry) => requested.includes(entry.id))
     if (targets.length !== requested.length) throw new Error('memory: every id must exist in the active raw entries')
-    const removed = targets.filter((entry) => entry.id !== keep)
-    const survivor = targets.find((entry) => entry.id === keep)
-    const bestContent = targets.reduce((best, entry) => (
-      normalizedContent(entry.content).length > normalizedContent(best.content).length ? entry : best
-    ), survivor)
-    const merged = {
-      ...survivor,
-      content: bestContent.content,
-      tags: normalizeTags([...new Set(targets.flatMap((entry) => Array.isArray(entry.tags) ? entry.tags : []))]),
-      importance: Math.max(...targets.map((entry) => Number.isFinite(entry.importance) ? entry.importance : 1))
-    }
+    const plan = planMergeEntries(targets, keep)
+    if (typeof options.validate === 'function') options.validate(plan, targets)
     const next = entries
       .filter((entry) => !requested.includes(entry.id) || entry.id === keep)
-      .map((entry) => (entry.id === keep ? merged : entry))
+      .map((entry) => (entry.id === keep ? plan.kept : entry))
     await this.writeAtomic(RAW_FILE, serializeRaw(next))
     this.rawCache = null
-    return { kept: merged, removed }
+    return plan
   }
 
   async findDuplicate(content) {

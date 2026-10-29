@@ -1,0 +1,29 @@
+﻿old-only exit=0
+{
+  "ok": true,
+  "profile": "C:\\Users\\example\\AppData\\Local\\Temp\\migration-v020-MCU1wL\\old",
+  "legacyCheck": "enabled",
+  "oldPresent": true,
+  "scopedPresent": false,
+  "action": "legacy bundle only; it can be removed before installing scoped"
+}
+
+both exit=1
+{
+  "ok": false,
+  "profile": "C:\\Users\\example\\AppData\\Local\\Temp\\migration-v020-MCU1wL\\both",
+  "legacyCheck": "enabled",
+  "oldPresent": true,
+  "scopedPresent": true,
+  "action": "remove the legacy memory bundle/row before loading dsh-memory-scoped"
+}
+
+scoped-only exit=0
+{
+  "ok": true,
+  "profile": "C:\\Users\\example\\AppData\\Local\\Temp\\migration-v020-MCU1wL\\scoped",
+  "legacyCheck": "enabled",
+  "oldPresent": false,
+  "scopedPresent": true,
+  "action": "scoped bundle only"
+}

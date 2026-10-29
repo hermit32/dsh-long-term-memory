@@ -26,7 +26,7 @@ export const SOURCE_TYPES = Object.freeze([
 
 /** Human labels for source classes. */
 export const SOURCE_LABELS = Object.freeze({
-  user_statement: { zh: '主人明确陈述', en: 'User statement' },
+  user_statement: { zh: '用户明确陈述', en: 'User statement' },
   session_task: { zh: '真实会话任务', en: 'Completed session task' },
   file_fact: { zh: '文件/工具资料', en: 'File or tool fact' },
   assistant_claim: { zh: '助手说法（未核实）', en: 'Assistant claim (unverified)' },

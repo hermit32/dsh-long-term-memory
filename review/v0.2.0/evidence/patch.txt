@@ -1,0 +1,30 @@
+﻿ok uninstalled check fails
+ok uninstalled check does not write
+ok uninstalled apply patches both
+ok apply made backups
+ok installed check succeeds
+ok repeat apply is idempotent
+ok fixture source patch setup
+ok half source check fails
+ok half source apply fails
+ok half source apply does not write
+ok fixture bundle patch setup
+ok half bundle check fails
+ok half bundle apply fails
+ok half bundle apply does not write
+ok version mismatch apply fails
+ok version mismatch does not write
+ok version mismatch check fails
+ok mixed old/new check fails
+ok mixed old/new apply fails
+ok mixed old/new apply does not write
+ok duplicate old/new check fails
+ok duplicate old/new apply fails
+ok duplicate old/new apply does not write
+ok comment-only markers check fails
+ok comment-only markers apply fails
+ok comment-only markers apply does not write
+{
+  "ok": true,
+  "base": "C:\\Users\\example\\AppData\\Local\\Temp\\dsh-patch-matrix-NiuNLN"
+}

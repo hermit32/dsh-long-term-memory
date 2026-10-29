@@ -263,7 +263,7 @@ window.__ModuleLoader__.load({
       sessionLive: '已加载',
       sessionUnverified: '未经本插件登记',
       sourceTypes: {
-        user_statement: '主人明确陈述',
+        user_statement: '用户明确陈述',
         session_task: '真实会话任务',
         file_fact: '文件/工具资料',
         assistant_claim: '助手说法（未核实）',

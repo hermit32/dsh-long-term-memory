@@ -1,6 +1,6 @@
 # THIRD_PARTY_NOTICES.md
 
-本发布候选包包含第三方代码的修改版。逐项核对结果如下。许可证原文保留在各组件
+本 v0.2.0 技术预览版包含第三方代码的修改版。逐项核对结果如下。许可证原文保留在各组件
 目录内；本文件只做索引与合规说明。
 
 ## 1. 随包分发的组件
@@ -25,9 +25,9 @@
 - 上游：`haitang1/dsh-memory` v0.5.0，commit `15de1c7`。
 - 保留 `plugins/memory/LICENSE`（MIT，Copyright (c) 2026 dsh-memory
   contributors）。
-- 修改说明：`plugins/memory/FORK-NOTES.md`（工作区隔离、按会话回合触发、curator、
+- 修改说明：`plugins/memory/FORK-NOTES.md`（工作区隔离、按工作区统一累计回合触发、跨会话 curator、
   provenance、控制台、P0 安全修复、匿名化改名）。
-- 未收录上游 README/CHANGELOG/STATUS/ROADMAP/开发脚本，原因见 FORK-NOTES.md。
+- 本版包含公开候选的 README、CHANGELOG、DESIGN、ROADMAP 与测试/验收说明。具体 fork 范围见 FORK-NOTES.md。
 
 ## 4. session-cascade-delete
 
@@ -46,7 +46,7 @@
 ## 5. dsh-im
 
 - 上游：<https://github.com/xmanrui/dsh-im> 5.6.0。
-- 本包不分发该插件，只提供安装说明和链接。
+- 本包不分发该插件完整运行库；另提供针对上游 5.6.0 的**本地事件桥接补丁** `patches/`（含源代码 diff 和应用脚本），须保留上游 MIT 著作权及许可，不代表上游官方支持。
 - 只验证了微信通道；其他通道见 `STATUS.md` 的未验证清单。
 
 ## 6. 未纳入的组件
@@ -78,4 +78,4 @@
 - [x] 未复制上游完整仓库，只取必要源码与测试。
 - [x] 许可证不明确的组件未纳入。
 - [x] 来源未完全核实的组件移出首版候选包。
-- [ ] 发布者需补充：本仓库原创部分的版权人名称（见 `LICENSE.md`）。
+- [x] 本仓库原创部分署名为 `miyouchen52-bot`，见 `LICENSE.md`。

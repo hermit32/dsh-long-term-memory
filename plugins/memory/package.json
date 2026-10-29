@@ -1,6 +1,6 @@
 {
   "name": "dsh-memory-scoped",
-  "version": "0.6.0-local.1",
+  "version": "0.2.0",
   "description": "Workspace-scoped long-term memory for DeepSeek Harness: a controlled fork of dsh-memory that only serves one configured private workspace, curates memory every N effective turns with a background model, records provenance, and ships an authenticated memory console.",
   "keywords": [
     "deepseek",
@@ -42,7 +42,17 @@
     "cordis.patch.yml",
     "README.md",
     "FORK-NOTES.md",
-    "LICENSE"
+    "LICENSE",
+    "acceptance",
+    "docs",
+    "test",
+    "scripts",
+    "CHANGELOG.md",
+    "README.zh.md",
+    "AGENTS.md",
+    "DESIGN.md",
+    "ROADMAP.md",
+    "MIGRATION.md"
   ],
   "dsh": {
     "bundle": {
@@ -61,6 +71,7 @@
   },
   "license": "MIT",
   "scripts": {
-    "test": "node --test"
+    "test": "node --test",
+    "check": "node scripts/check-release.mjs"
   }
 }

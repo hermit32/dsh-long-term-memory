@@ -13,7 +13,7 @@ async function startServer(t) {
   const dir = await mkdtemp(join(tmpdir(), 'dsh-memory-mcp-'))
   t.after(() => rm(dir, { recursive: true, force: true }))
   const child = spawn(process.execPath, [join(repoRoot, 'bin', 'dsh-memory-mcp.mjs')], {
-    env: { ...process.env, DSH_MEMORY_DIR: dir, DSH_MEMORY_REDACT: '1' },
+    env: { ...process.env, DSH_MEMORY_DIR: dir, DSH_MEMORY_REDACT: '1', DSH_MEMORY_ALLOW_GLOBAL: '1' },
     stdio: ['pipe', 'pipe', 'pipe']
   })
   t.after(() => child.kill())

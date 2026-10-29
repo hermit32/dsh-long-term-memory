@@ -1,0 +1,1 @@
+﻿[check-release] OK: version 0.2.0, 187 tests declared and verified.

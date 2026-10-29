@@ -11,7 +11,7 @@ no single copyright holder for the whole tree.
 | `plugins/memory/LICENSE` | MIT (verbatim) | Copyright (c) 2026 dsh-memory contributors |
 | `plugins/session-manager/src`, `locale`, `test`, `icon.svg`, `cordis.patch.yml` | MIT | Copyright (c) 2026 liuyu-f; Copyright (c) 2026 lsz-asd |
 | `plugins/session-manager/LICENSE` | MIT (verbatim) | as above |
-| `scripts/notify/**`, `examples/**`, `tests/**`, `review/**`, `.gitignore`, `README.md`, `INSTALL.md`, `ARCHITECTURE.md`, `STATUS.md`, `THIRD_PARTY_NOTICES.md`, `LICENSE.md` | MIT | Copyright (c) 2026 miyouchen52-bot |
+| `scripts/notify/**`, `patches/**`（其中来自 dsh-im 的源代码保留其上游 MIT 归属）, `examples/**`, `tests/**`, `review/**`, `.gitignore`, `README.md`, `INSTALL.md`, `ARCHITECTURE.md`, `STATUS.md`, `THIRD_PARTY_NOTICES.md`, `LICENSE.md` | MIT | Copyright (c) 2026 miyouchen52-bot |
 
 > 可选组件（推理强度滑块、公开行情 Skill）**不在本包内**，其许可证信息见
 > `THIRD_PARTY_NOTICES.md` 第 6.1 节。它们不属于本包的许可范围。

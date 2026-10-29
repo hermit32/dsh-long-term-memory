@@ -17,18 +17,18 @@ async function withStore(fn) {
 
 test('curator operations add, update and merge raw entries', async () => {
   await withStore(async (store) => {
-    const first = await store.appendRawEntry({ content: '主人喜欢简洁中文', tags: ['preference'], importance: 1 })
-    const second = await store.appendRawEntry({ content: '主人喜欢简洁的中文回复', tags: ['preference'], importance: 2 })
+    const first = await store.appendRawEntry({ content: '用户喜欢简洁中文', tags: ['preference'], importance: 1 })
+    const second = await store.appendRawEntry({ content: '用户喜欢简洁的中文回复', tags: ['preference'], importance: 2 })
     const result = await store.applyCuratorOperations([
       { op: 'merge', ids: [first.id, second.id], keepId: first.id },
-      { op: 'update', id: first.id, content: '主人偏好简洁中文', tags: ['preference', 'style'], importance: 3 },
+      { op: 'update', id: first.id, content: '用户偏好简洁中文', tags: ['preference', 'style'], importance: 3 },
       { op: 'add', content: '共同完成过 DSH 记忆系统', tags: ['shared'], importance: 2 }
     ])
     assert.equal(result.ok, true)
     const entries = await store.readRawEntries()
     assert.equal(entries.length, 2)
     const survivor = entries.find((entry) => entry.id === first.id)
-    assert.equal(survivor.content, '主人偏好简洁中文')
+    assert.equal(survivor.content, '用户偏好简洁中文')
     assert.deepEqual(survivor.tags, ['preference', 'style'])
     assert.equal(survivor.importance, 3)
     assert.ok(entries.some((entry) => entry.content.includes('记忆系统')))

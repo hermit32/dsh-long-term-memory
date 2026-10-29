@@ -1,0 +1,103 @@
+﻿# Historical run: captured before the 0.2.0 MCP hardening. Curator code was not
+# modified in that change. Not rerun here because @deepseek-ai peer packages are
+# not installed in this workspace (see TEST-REPORT.md section 5).
+ok abc
+ok wechat
+ok partial
+ok deferred
+ok fault
+{
+  "ok": true,
+  "mode": "all",
+  "results": [
+    {
+      "name": "abc",
+      "ok": true,
+      "detail": {
+        "rawMarkers": [
+          "SYNTHETIC_0_FACT",
+          "SYNTHETIC_1_FACT",
+          "SYNTHETIC_2_FACT"
+        ],
+        "pending": {
+          "session-synthetic-0": 0,
+          "session-synthetic-1": 0,
+          "session-synthetic-2": 0
+        },
+        "runStatus": "ok"
+      }
+    },
+    {
+      "name": "wechat",
+      "ok": true,
+      "detail": {
+        "rawMarkers": [
+          "SYNTHETIC_0_FACT",
+          "SYNTHETIC_1_FACT",
+          "SYNTHETIC_2_FACT"
+        ],
+        "pending": {
+          "session-synthetic-0": 0,
+          "session-synthetic-1": 0,
+          "session-synthetic-2": 0
+        },
+        "runStatus": "ok"
+      }
+    },
+    {
+      "name": "partial",
+      "ok": true,
+      "detail": {
+        "rawCount": 1,
+        "pending": {
+          "pendingTurns": 0,
+          "cursorSeq": 6,
+          "countedSeq": 6,
+          "lastTurnAt": 1793289929498,
+          "lastCuratedAt": 1793289930519,
+          "lastAttemptAt": 0,
+          "attempts": 0,
+          "emptyChecks": 1,
+          "sessionId": "session-synthetic-0"
+        }
+      }
+    },
+    {
+      "name": "deferred",
+      "ok": true,
+      "detail": {
+        "rawCount": 17,
+        "pending": {
+          "session-synthetic-0": 0,
+          "session-synthetic-1": 0,
+          "session-synthetic-2": 0,
+          "session-synthetic-3": 0,
+          "session-synthetic-4": 0,
+          "session-synthetic-5": 0,
+          "session-synthetic-6": 0,
+          "session-synthetic-7": 0,
+          "session-synthetic-8": 0,
+          "session-synthetic-9": 0,
+          "session-synthetic-10": 0,
+          "session-synthetic-11": 0,
+          "session-synthetic-12": 0,
+          "session-synthetic-13": 0,
+          "session-synthetic-14": 0,
+          "session-synthetic-15": 0,
+          "session-synthetic-16": 0
+        },
+        "runs": 3
+      }
+    },
+    {
+      "name": "fault",
+      "ok": true,
+      "detail": {
+        "rawCount": 1,
+        "cursor": 6,
+        "pendingTurns": 0
+      }
+    }
+  ]
+}
+

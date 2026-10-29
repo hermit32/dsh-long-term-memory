@@ -1,4 +1,4 @@
-// dsh-memory: Codex-like persistent memory for DeepSeek Harness.
+﻿// dsh-memory: Codex-like persistent memory for DeepSeek Harness.
 //
 // Storage layout under $DSH_HOME/memories/ (default ~/.dsh/memories/):
 //   memory_summary.md          distilled, versioned, bounded memory injected into every prompt
@@ -73,14 +73,18 @@ import {
   CURATOR_SYSTEM_PROMPT,
   DEFAULT_ORPHAN_GRACE_MS,
   DEFAULT_PRIVATE_WORKSPACE,
+  DEFAULT_WORKSPACE_MAX_BATCHES,
+  DEFAULT_WORKSPACE_MAX_SESSIONS,
   advancePendingAfterCuration,
   buildBatchTranscript,
   buildCuratorInput,
   buildTranscriptLines,
   extractJsonObject,
   hasHumanExchange,
+  isFreshPrivateRootSession,
   isPrivateSession,
   isSessionOwned,
+  isWeixinNewSessionForPrivate,
   lastEventSeq,
   markSessionOwned,
   normalizePendingState,
@@ -89,7 +93,10 @@ import {
   prunePendingState,
   shouldConsolidateAfterCuration,
   shouldFlushOrphan,
-  validateCuratorOperations
+  validateCuratorOperations,
+  workspacePendingSessions,
+  workspacePendingTotal,
+  workspaceTriggerDue
 } from './scoped.js'
 
 export const name = 'dsh-memory'
@@ -404,8 +411,9 @@ export function apply(ctx, config = {}) {
   const privatePath = normalizePath(resolved.privateWorkspace)
   const isPrivate = (session) => privatePath.length > 0 && isPrivateSession(session, resolved.privateWorkspace)
   // 子代理会继承父会话的 header.cwd，不能仅凭 cwd 判定；记忆只对私人工作区的
-  // 根会话开放，子代理一律排除，避免从默认工作区/lab派生的子代理带入。
+  // 根会话开放，子代理一律排除，避免从默认工作区/实验室派生的子代理带入。
   const isPrivateRoot = (session) => isPrivate(session) && isRootSession(session)
+  const isPrivateScopeKey = (scopeKey) => scopeKey === scopeKeyForCwd(resolved.privateWorkspace)
   const assertPrivateExec = (exec) => {
     if (!isPrivateRoot(exec && exec.agent ? exec.agent.session : undefined)) {
       throw new Error('memory: only available in the private workspace root session')
@@ -413,6 +421,8 @@ export function apply(ctx, config = {}) {
   }
   const pendingStates = new Map()
   const curatorRunning = new Set()
+  const workspaceCuratorRunning = new Set()
+  const workspaceQueuedTriggers = new Map()
   const activeRuns = new Map()
   let consoleService = null
   const restrictedAgents = new WeakMap()
@@ -568,6 +578,8 @@ export function apply(ctx, config = {}) {
           running: [...activeRuns.values()].map((run) => ({
             runId: run.runId,
             sessionId: run.sessionId,
+            sessionIds: Array.isArray(run.sessionIds) ? run.sessionIds : [],
+            workspace: run.workspace === true,
             startedAt: run.startedAt,
             trigger: run.trigger,
             pendingTurns: run.pendingTurns
@@ -587,7 +599,7 @@ export function apply(ctx, config = {}) {
           }
         },
         requestConsolidation: () => requestConsolidation(runtimeForScope(key), true),
-        runCuration: (sessionId) => runCurator(sessionId, undefined, key, 'manual'),
+        runCuration: () => runWorkspaceCurator(key, 'manual'),
         settings,
         readDefaults: () => plainConfig(Config({})),
         readDiagnostics: () => store.readJsonFile('diagnostics.json', {})
@@ -1181,24 +1193,103 @@ export function apply(ctx, config = {}) {
     record.countedSeq = maxSeq
     record.lastTurnAt = Date.now()
     await savePending(scopeKey)
-    if (record.pendingTurns >= resolved.curateEveryTurns) {
-      scheduleCurate(sessionId, agent, scopeKey, 'threshold')
+    if (workspaceTriggerDue(workspacePendingTotal(state), resolved.curateEveryTurns)) {
+      scheduleWorkspaceCuration(scopeKey, 'threshold')
     }
   }
 
-  function scheduleCurate(sessionId, agent, scopeKey, trigger = 'threshold') {
+  /**
+   * Workspace-level scheduler. One private workspace has one active curation
+   * task; per-session runs are only batches inside it. A new-session event that
+   * arrives while a task is running is coalesced into one follow-up, never a
+   * second concurrent model call.
+   */
+  function scheduleWorkspaceCuration(scopeKey, trigger = 'threshold', options = {}) {
     if (!resolved.autoSummarize || lifecycle.signal.aborted) return
-    if (curatorRunning.has(sessionId)) return
+    if (!isPrivateScopeKey(scopeKey)) return
+    if (workspaceCuratorRunning.has(scopeKey)) {
+      if (trigger === 'new-session' || trigger === 'wechat-new') {
+        workspaceQueuedTriggers.set(scopeKey, trigger)
+      }
+      return
+    }
     setTimeout(() => {
-      runCurator(sessionId, agent, scopeKey, trigger).catch((error) => {
+      runWorkspaceCurator(scopeKey, trigger, options).catch((error) => {
         curatorTelemetry.failures += 1
         recordError('curator', error)
-        ctx.logger.warn('dsh-memory-scoped: curator failed for %s: %o', sessionId, error)
+        ctx.logger.warn('dsh-memory-scoped: workspace curator failed for %s: %o', scopeKey, error)
       })
-    }, 0)
+    }, 0).unref?.()
+  }
+
+  async function sessionHeaderById(sessionId) {
+    if (typeof sessionId !== 'string' || sessionId.length === 0) return undefined
+    const sessions = ctx.get('sessions')
+    if (sessions !== undefined && sessions !== null && typeof sessions.list === 'function') {
+      try {
+        const found = sessions.list().find((session) => sameSessionId(session && session.id, sessionId))
+        if (found !== undefined) return found.header ?? found
+      } catch {
+        /* fall through to the query corpus */
+      }
+    }
+    const query = ctx.get('sessionQuery')
+    if (query !== undefined && query !== null && typeof query.listSessions === 'function') {
+      try {
+        const records = await query.listSessions()
+        if (Array.isArray(records)) {
+          const found = records.find((record) => sameSessionId(record && record.header && record.header.id, sessionId))
+          if (found !== undefined) return found.header ?? found
+        }
+      } catch {
+        /* unknown, do not guess */
+      }
+    }
+    return undefined
+  }
+
+  /**
+   * DSH emits `agent/created` with source `startup` for a genuinely fresh
+   * session and `resume` when an existing session is opened or restored after
+   * an app start. Only the fresh private root is a desktop-new trigger.
+   */
+  async function handleNewSessionEvent(agent, source) {
+    if (!resolved.autoSummarize || lifecycle.signal.aborted) return
+    if (!isFreshPrivateRootSession(agent?.session, source, resolved.privateWorkspace)) return
+    const scopeKey = scopeFromSession(agent.session)
+    if (!isPrivateScopeKey(scopeKey)) return
+    const state = await pendingFor(scopeKey)
+    if (workspacePendingTotal(state) < 1) return
+    scheduleWorkspaceCuration(scopeKey, 'new-session')
+  }
+
+  /**
+   * dsh-im's WeChat `/new` only clears the conversation binding; it does not
+   * create a DSH session. The local dsh-im patch emits this process event right
+   * after the binding is cleared, with the previous session id and workspace.
+   * We still verify the previous header/workspace before touching memory.
+   */
+  async function handleImNewSession(payload) {
+    if (!resolved.autoSummarize || lifecycle.signal.aborted) return
+    if (payload === null || typeof payload !== 'object' || payload.channel !== 'weixin') return
+    let isPrivate = false
+    if (typeof payload.workspace === 'string' && payload.workspace.length > 0) {
+      isPrivate = isWeixinNewSessionForPrivate(payload, resolved.privateWorkspace)
+    } else if (typeof payload.previousSessionId === 'string') {
+      const header = await sessionHeaderById(payload.previousSessionId)
+      if (header !== undefined) isPrivate = isPrivateRoot({ header })
+    }
+    if (!isPrivate) return
+    const scopeKey = scopeKeyForCwd(resolved.privateWorkspace)
+    const state = await pendingFor(scopeKey)
+    if (workspacePendingTotal(state) < 1) return
+    scheduleWorkspaceCuration(scopeKey, 'wechat-new')
   }
 
   async function completeCurate(scopeKey, record, lastSeq, empty, processedTurns, run) {
+    const state = await pendingFor(scopeKey)
+    const snapshot = { ...record }
+    const ownedSnapshot = JSON.parse(JSON.stringify(state.owned ?? {}))
     run.processedTurns = processedTurns
     advancePendingAfterCuration(record, {
       lastSeq,
@@ -1206,7 +1297,18 @@ export function apply(ctx, config = {}) {
       empty,
       now: Date.now()
     })
-    await savePending(scopeKey)
+    try {
+      await savePending(scopeKey)
+    } catch (error) {
+      // The raw write may already have succeeded, but the cursor must not move
+      // on disk if its save failed. Restore the in-memory cursor AND the owned
+      // ledger (prunePendingState may have removed the ledger entry when the
+      // transient pending count became zero).
+      Object.assign(record, snapshot)
+      state.sessions[record.sessionId] = record
+      state.owned = ownedSnapshot
+      throw error
+    }
     run.status = empty ? 'empty' : 'ok'
     writeStartupDiagnostics({
       curator: {
@@ -1252,6 +1354,182 @@ export function apply(ctx, config = {}) {
     }
   }
 
+  async function finishWorkspaceCuratorRun(scopeKey, run) {
+    run.endedAt = Date.now()
+    run.summaryVersionAfter = runtimeForScope(scopeKey).state.version
+    run.llmCalls = Math.max(0, llmStats.calls - run.llmCallsBefore)
+    run.llmFailures = Math.max(0, llmStats.failures - run.llmFailuresBefore)
+    delete run.llmCallsBefore
+    delete run.llmFailuresBefore
+    try {
+      const target = runtimeForScope(scopeKey).store
+      await target.withLock(async () => {
+        const log = await target.readCuratorLog()
+        await target.writeCuratorLog(appendCuratorRun(log, run, 100))
+      })
+    } catch (error) {
+      ctx.logger.warn('dsh-memory-scoped: workspace curator log write failed: %o', error)
+    }
+  }
+
+  /**
+   * Run one workspace-level curation task. Sessions are processed sequentially
+   * as bounded batches: one LLM call per session, no parallel model calls. Every
+   * batch reads its own cursor and only advances that session after success, so
+   * a slow or failed batch cannot consume another session's turns.
+   */
+  async function runWorkspaceCurator(scopeKey, trigger = 'threshold', options = {}) {
+    if (workspaceCuratorRunning.has(scopeKey) || lifecycle.signal.aborted) return
+    if (!isPrivateScopeKey(scopeKey)) return
+    workspaceCuratorRunning.add(scopeKey)
+    const runtime = runtimeForScope(scopeKey)
+    const run = {
+      runId: newCuratorRunId(),
+      startedAt: Date.now(),
+      endedAt: 0,
+      sessionId: '',
+      sessionIds: [],
+      deferredSessionIds: [],
+      workspace: true,
+      trigger,
+      status: 'skipped',
+      pendingTurns: 0,
+      processedTurns: 0,
+      llmCallsBefore: llmStats.calls,
+      llmFailuresBefore: llmStats.failures,
+      llmCalls: 0,
+      llmFailures: 0,
+      adds: 0,
+      updates: 0,
+      merges: 0,
+      duplicates: 0,
+      dropped: 0,
+      summaryVersionBefore: runtime.state.version,
+      summaryVersionAfter: runtime.state.version,
+      attempts: 0,
+      addedIds: [],
+      updatedIds: [],
+      mergedIds: []
+    }
+    activeRuns.set(run.runId, run)
+    let failed = false
+    let appliedAny = false
+    let nextBatch = null
+    try {
+      const state = await pendingFor(scopeKey)
+      const include = Array.isArray(options.sessionIds) && options.sessionIds.length > 0
+        ? new Set(options.sessionIds)
+        : undefined
+      const selection = workspacePendingSessions(state, {
+        limit: Number.isFinite(options.limit) ? options.limit : DEFAULT_WORKSPACE_MAX_SESSIONS,
+        exclude: forgottenSessions,
+        include
+      })
+      if (selection.selected.length === 0) {
+        run.status = 'empty'
+        run.error = '没有可整理的已登记会话'
+        return
+      }
+      if (trigger === 'threshold' && !workspaceTriggerDue(selection.total, resolved.curateEveryTurns)) {
+        run.status = 'skipped'
+        run.error = `工作区待整理 ${selection.total} 回合，未达到 ${resolved.curateEveryTurns} 回合阈值`
+        return
+      }
+      run.sessionId = selection.selected[0].sessionId
+      run.sessionIds = selection.selected.map((item) => item.sessionId)
+      run.deferredSessionIds = [...selection.deferred]
+      run.pendingTurns = selection.total
+      const results = []
+      for (const item of selection.selected) {
+        if (curatorRunning.has(item.sessionId) || forgottenSessions.has(item.sessionId)) {
+          run.deferredSessionIds.push(item.sessionId)
+          continue
+        }
+        let child
+        try {
+          await runCurator(item.sessionId, undefined, scopeKey, trigger, {
+            suppressLog: true,
+            suppressConsolidation: true,
+            onComplete: (result) => {
+              child = result
+            }
+          })
+        } catch (error) {
+          ctx.logger.warn('dsh-memory-scoped: workspace batch failed for %s: %o', item.sessionId, error)
+        }
+        if (child === undefined) {
+          failed = true
+          results.push({ sessionId: item.sessionId, status: 'failed', error: 'curator batch did not complete' })
+          continue
+        }
+        results.push(child)
+        if (child.status === 'failed') failed = true
+        if (child.status === 'ok') appliedAny = true
+        run.adds += Number.isFinite(child.adds) ? child.adds : 0
+        run.updates += Number.isFinite(child.updates) ? child.updates : 0
+        run.merges += Number.isFinite(child.merges) ? child.merges : 0
+        run.duplicates += Number.isFinite(child.duplicates) ? child.duplicates : 0
+        run.dropped += Number.isFinite(child.dropped) ? child.dropped : 0
+        run.processedTurns += Number.isFinite(child.processedTurns) ? child.processedTurns : 0
+        for (const id of child.addedIds ?? []) run.addedIds.push(id)
+        for (const id of child.updatedIds ?? []) run.updatedIds.push(id)
+        for (const id of child.mergedIds ?? []) run.mergedIds.push(id)
+        run.attempts = Math.max(run.attempts, Number.isFinite(child.attempts) ? child.attempts : 0)
+      }
+      run.status = failed
+        ? 'failed'
+        : appliedAny
+          ? 'ok'
+          : results.some((result) => result.status === 'empty')
+            ? 'empty'
+            : 'skipped'
+      if (failed && run.error === undefined) run.error = '部分会话整理失败，失败批次保留待整理回合'
+      if (!failed && selection.deferred.length > 0 && (options.batchDepth ?? 0) < DEFAULT_WORKSPACE_MAX_BATCHES - 1) {
+        // Continue with the next batch until the queue is drained, bounded to
+        // eight 8-session batches (64 sessions) per task. Anything beyond that
+        // is logged in deferredSessionIds and remains in pending-turns.json for
+        // the next trigger or manual curation; it is never silently dropped.
+        nextBatch = {
+          trigger: 'batch-continue',
+          options: {
+            batchDepth: (options.batchDepth ?? 0) + 1,
+            sessionIds: [...selection.deferred]
+          }
+        }
+      }
+      if (appliedAny) {
+        // One consolidation per workspace task, not one per session. This keeps
+        // the model call count bounded while still folding all successful adds
+        // into the single private long-term memory.
+        const beforeVersion = runtime.state.version
+        await maybeConsolidate(runtime, true)
+        if (runtime.state.version > beforeVersion) curatorTelemetry.consolidations += 1
+      }
+      writeStartupDiagnostics({
+        curator: {
+          ...curatorTelemetry,
+          lastSessionId: run.sessionId,
+          lastEmpty: !appliedAny,
+          lastAt: Date.now()
+        }
+      })
+    } catch (error) {
+      failed = true
+      run.status = 'failed'
+      run.error = String(error && error.message !== undefined ? error.message : error)
+      curatorTelemetry.failures += 1
+      recordError('curator', error)
+    } finally {
+      activeRuns.delete(run.runId)
+      workspaceCuratorRunning.delete(scopeKey)
+      const queued = workspaceQueuedTriggers.get(scopeKey)
+      workspaceQueuedTriggers.delete(scopeKey)
+      await finishWorkspaceCuratorRun(scopeKey, run).catch(() => {})
+      if (queued !== undefined) scheduleWorkspaceCuration(scopeKey, queued)
+      else if (nextBatch !== null) scheduleWorkspaceCuration(scopeKey, nextBatch.trigger, nextBatch.options)
+    }
+  }
+
   /**
    * Attribute each curator proposal to a transcript line and drop anything the
    * transcript cannot support. This is the deterministic half of the provenance
@@ -1260,10 +1538,15 @@ export function apply(ctx, config = {}) {
   function attributeCuratorOperations(operations, lines, context) {
     const kept = []
     const dropped = []
+    // The transcript lines are a required part of the attribution context. This
+    // function takes them as its second argument (the pure attribution module
+    // also accepts them in `context`); omitting them here made every proposal
+    // fail with "内容与本次对话没有足够重合" and silently produced empty runs.
+    const attributionContext = { ...(context ?? {}), lines: Array.isArray(lines) ? lines : [] }
     for (const op of operations) {
       if (op === null || typeof op !== 'object') continue
       if (op.op === 'add') {
-        const result = attributeOperation(op, context)
+        const result = attributeOperation(op, attributionContext)
         if (!result.ok) {
           dropped.push({ op: op.op, reason: result.reason })
           continue
@@ -1272,7 +1555,7 @@ export function apply(ctx, config = {}) {
         continue
       }
       if (op.op === 'update' && op.content !== undefined) {
-        const result = attributeOperation(op, context)
+        const result = attributeOperation(op, attributionContext)
         if (!result.ok) {
           dropped.push({ op: op.op, id: op.id, reason: result.reason })
           continue
@@ -1281,7 +1564,7 @@ export function apply(ctx, config = {}) {
         continue
       }
       if (op.op === 'merge' && op.content !== undefined) {
-        const result = attributeOperation(op, context)
+        const result = attributeOperation(op, attributionContext)
         if (!result.ok) {
           // The merge itself is still useful (dedupe); drop only the unsupported
           // rewritten content.
@@ -1367,9 +1650,12 @@ export function apply(ctx, config = {}) {
     }
   }
 
-  async function runCurator(sessionId, agent, scopeKey, trigger = 'threshold') {
+  async function runCurator(sessionId, agent, scopeKey, trigger = 'threshold', options = {}) {
     if (curatorRunning.has(sessionId) || lifecycle.signal.aborted) return
     curatorRunning.add(sessionId)
+    const suppressLog = options.suppressLog === true
+    const suppressConsolidation = options.suppressConsolidation === true
+    const onComplete = typeof options.onComplete === 'function' ? options.onComplete : undefined
     const runtime = runtimeForScope(scopeKey)
     const run = {
       runId: newCuratorRunId(),
@@ -1401,6 +1687,9 @@ export function apply(ctx, config = {}) {
       run.status = 'skipped'
       run.error = '会话已删除，待整理状态已清理'
       curatorTelemetry.skipped += 1
+      activeRuns.delete(run.runId)
+      curatorRunning.delete(sessionId)
+      onComplete?.(run)
       return
     }
     const state = await pendingFor(scopeKey)
@@ -1544,7 +1833,7 @@ export function apply(ctx, config = {}) {
       await recordCuratorProvenance(runtime.store, run, attributed.operations, applied.applied, sessionId)
       const meaningful = applied.applied.some((item) => item.duplicate !== true)
       await completeCurate(scopeKey, record, lastSeq, !meaningful, processedTurns, run)
-      if (shouldConsolidateAfterCuration(attributed.operations, applied.applied)) {
+      if (!suppressConsolidation && shouldConsolidateAfterCuration(attributed.operations, applied.applied)) {
         const beforeVersion = runtime.state.version
         await maybeConsolidate(runtime, true)
         if (runtime.state.version > beforeVersion) curatorTelemetry.consolidations += 1
@@ -1563,7 +1852,17 @@ export function apply(ctx, config = {}) {
     } finally {
       activeRuns.delete(run.runId)
       curatorRunning.delete(sessionId)
-      await finishCuratorRun(scopeKey, run).catch(() => {})
+      if (!suppressLog) {
+        await finishCuratorRun(scopeKey, run).catch(() => {})
+      } else {
+        run.endedAt = Date.now()
+        run.summaryVersionAfter = runtime.state.version
+        run.llmCalls = Math.max(0, llmStats.calls - run.llmCallsBefore)
+        run.llmFailures = Math.max(0, llmStats.failures - run.llmFailuresBefore)
+        delete run.llmCallsBefore
+        delete run.llmFailuresBefore
+      }
+      onComplete?.(run)
     }
   }
 
@@ -1606,6 +1905,8 @@ export function apply(ctx, config = {}) {
     const now = Date.now()
     let scheduled = 0
     for (const [scopeKey, state] of pendingStates) {
+      if (!isPrivateScopeKey(scopeKey)) continue
+      const orphanIds = []
       for (const [sessionId, record] of Object.entries(state.sessions)) {
         if (forgottenSessions.has(sessionId)) continue
         if (!shouldFlushOrphan(record, {
@@ -1613,12 +1914,15 @@ export function apply(ctx, config = {}) {
           now,
           graceMs: resolved.orphanGraceMs
         })) continue
-        scheduleCurate(sessionId, undefined, scopeKey, 'orphan')
-        scheduled += 1
+        orphanIds.push(sessionId)
+      }
+      if (orphanIds.length > 0) {
+        scheduleWorkspaceCuration(scopeKey, 'orphan', { sessionIds: orphanIds })
+        scheduled += orphanIds.length
       }
     }
     if (scheduled > 0) {
-      ctx.logger.info('dsh-memory-scoped: scheduled %d orphaned session(s) for curation (%s)', scheduled, reason)
+      ctx.logger.info('dsh-memory-scoped: scheduled %d orphaned session(s) for workspace curation (%s)', scheduled, reason)
     }
   }
 
@@ -1793,16 +2097,30 @@ export function apply(ctx, config = {}) {
         ctx.logger.warn('dsh-memory-scoped: turn counting failed: %o', error)
       })
     }))
-    disposers.push(ctx.on('agent/created', ({ agent }) => {
+    disposers.push(ctx.on('agent/created', ({ agent, source }) => {
       attachSubagentCapture(agent)
       restrictForAgent(agent)
       if (resolved.flushOrphansOnNewSession && isPrivateRoot(agent && agent.session)) {
         scheduleOrphanFlush('new-session')
       }
+      handleNewSessionEvent(agent, source).catch((error) => {
+        recordError('new-session-trigger', error)
+        ctx.logger.warn('dsh-memory-scoped: new-session trigger failed: %o', error)
+      })
     }))
     disposers.push(ctx.on('agent/disposed', ({ agent }) => {
       disposeAgentRestriction(agent)
     }))
+    if (typeof process !== 'undefined' && typeof process.on === 'function') {
+      const onImNewSession = (payload) => {
+        handleImNewSession(payload).catch((error) => {
+          recordError('wechat-new-trigger', error)
+          ctx.logger.warn('dsh-memory-scoped: WeChat /new trigger failed: %o', error)
+        })
+      }
+      process.on('dsh-im/new-session', onImNewSession)
+      disposers.push(() => process.off('dsh-im/new-session', onImNewSession))
+    }
     disposers.push(ctx.on('session-delete/deleted', (payload) => {
       const sessionId = typeof payload === 'string'
         ? payload
@@ -1877,7 +2195,7 @@ export function apply(ctx, config = {}) {
   ctx.logger.info('dsh-memory ready (dir=%s, maxBytes=%d, consolidateMaxBytes=%d, keepSummaryVersions=%d, rawArchiveMaxBytes=%d, summaryMaxTokens=%d, consolidateMaxTokens=%d, llmRetries=%d, maxActiveSummaries=%d, scopedMemory=%s, captureSubagents=%s, injectTokens=%d, scopeMaxBytes=%d, redactSecrets=%s, autoSummarize=%s)', configuredDir, resolved.maxBytes, resolved.consolidateMaxBytes, resolved.keepSummaryVersions, resolved.rawArchiveMaxBytes, resolved.summaryMaxTokens, resolved.consolidateMaxTokens, resolved.llmRetries, resolved.maxActiveSummaries, String(resolved.scopedMemory), String(resolved.captureSubagents), resolved.injectTokens, resolved.scopeMaxBytes, String(resolved.redactSecrets), String(resolved.autoSummarize))
   writeStartupDiagnostics({
     plugin: 'dsh-memory-scoped',
-    fixVersion: 'p0-20261028',
+    fixVersion: 'workspace-curation-20261029.2-scoped.1',
     privateWorkspace: resolved.privateWorkspace,
     curateEveryTurns: resolved.curateEveryTurns,
     curateMaxAdds: resolved.curateMaxAdds,
@@ -2712,3 +3030,4 @@ export function toolDefinitions(store, resolved, requestConsolidation, runtimeSt
     })
   ]
 }
+

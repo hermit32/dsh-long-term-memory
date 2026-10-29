@@ -267,3 +267,10 @@ test('host wiring: apply() wires up on DSH 0.1.7, where settings.register() no l
 // asserts the host wiring actually registers everything. Imports the harness
 // packages (dsh-llm / dsh-tools) transitively, so it only runs where they are
 // resolvable; in zero-dependency CI it skips so the suite stays green.
+
+
+test('host wiring: curator attribution receives the transcript lines', async () => {
+  const source = await readFile(new URL('../lib/index.js', import.meta.url), 'utf8')
+  assert.match(source, /const attributionContext = \{ \.\.\.\(context \?\? \{\}\), lines:/)
+  assert.match(source, /attributeOperation\(op, attributionContext\)/)
+})

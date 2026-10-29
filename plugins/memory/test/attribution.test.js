@@ -46,12 +46,12 @@ test('transcript lines keep sequence, role and tool name for attribution', () =>
 test('a directory listing can never become a shared experience', () => {
   const built = transcript()
   const bad = attributeOperation(
-    { op: 'add', content: '主人和助手一起整理过 Downloads 里的医学教学资料。' },
+    { op: 'add', content: '用户和助手一起整理过 Downloads 里的医学教学资料。' },
     { lines: built.lines, hasHumanExchange: true, sessionId: 'session-a', endSeq: 5 }
   )
   assert.equal(bad.ok, false)
   assert.match(bad.reason, /共同|文件|来源/)
-  assert.equal(hasSharedExperienceClaim('主人和助手一起整理过医学资料'), true)
+  assert.equal(hasSharedExperienceClaim('用户和助手一起整理过医学资料'), true)
 })
 
 test('a file fact is allowed but is labelled as file/tool evidence', () => {
@@ -73,7 +73,7 @@ test('a user statement is the reliable source for personal facts', () => {
   ]
   const built = buildTranscriptLines(events, { fromSeq: 1, maxBytes: 4000 })
   const good = attributeOperation(
-    { op: 'add', content: '主人希望以后都用中文回复。' },
+    { op: 'add', content: '用户希望以后都用中文回复。' },
     { lines: built.lines, hasHumanExchange: true, sessionId: 'session-a', endSeq: 2 }
   )
   assert.equal(good.ok, true)
@@ -83,11 +83,11 @@ test('a user statement is the reliable source for personal facts', () => {
 
 test('an assistant claim alone is not a memory source', () => {
   const events = [
-    { seq: 1, type: 'assistant/message', data: { message: { content: [{ type: 'text', text: '我记得主人喜欢蓝色。' }] } } }
+    { seq: 1, type: 'assistant/message', data: { message: { content: [{ type: 'text', text: '我记得用户喜欢蓝色。' }] } } }
   ]
   const built = buildTranscriptLines(events, { fromSeq: 1, maxBytes: 4000 })
   const bad = attributeOperation(
-    { op: 'add', content: '主人喜欢蓝色。' },
+    { op: 'add', content: '用户喜欢蓝色。' },
     { lines: built.lines, hasHumanExchange: false, sessionId: 'session-a', endSeq: 1 }
   )
   assert.equal(bad.ok, false)
@@ -102,7 +102,7 @@ test('a real completed session task can support a shared experience', () => {
   ]
   const built = buildTranscriptLines(events, { fromSeq: 1, maxBytes: 4000 })
   const good = attributeOperation(
-    { op: 'add', content: '主人和我一起把这个脚本改成可重试的。' },
+    { op: 'add', content: '用户和我一起把这个脚本改成可重试的。' },
     { lines: built.lines, hasHumanExchange: true, sessionId: 'session-a', endSeq: 4 }
   )
   assert.equal(good.ok, true)
@@ -123,8 +123,8 @@ test('summary scrub removes only the bullet that came from the deleted entry', (
 })
 
 test('summary scrub also removes a short exact bullet', () => {
-  const shortSummary = `# DSH memory\n\nv2\n\n## 偏好\n\n- 主人喜欢蓝色。\n\n## Verification notes\n\n- (no active entries)\n`
-  const result = scrubEntriesFromSummary(shortSummary, [{ id: 'mem-short', content: '主人喜欢蓝色。' }], { threshold: 0.5 })
+  const shortSummary = `# DSH memory\n\nv2\n\n## 偏好\n\n- 用户喜欢蓝色。\n\n## Verification notes\n\n- (no active entries)\n`
+  const result = scrubEntriesFromSummary(shortSummary, [{ id: 'mem-short', content: '用户喜欢蓝色。' }], { threshold: 0.5 })
   assert.equal(result.changed, true)
   assert.doesNotMatch(result.text, /喜欢蓝色/)
   assert.match(result.text, /Verification notes/)

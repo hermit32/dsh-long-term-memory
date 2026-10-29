@@ -1,0 +1,27 @@
+﻿diff --git a/src/channels/weixin/weixin-bridge.mjs b/src/channels/weixin/weixin-bridge.mjs
+index 4c3d8a5..416d632 100644
+--- a/src/channels/weixin/weixin-bridge.mjs
++++ b/src/channels/weixin/weixin-bridge.mjs
+@@ -1049,7 +1049,21 @@ export class WeixinHarnessBridge {
+         return;
+       }
+       if (!hasImages && !hasFiles && command === '/new') {
++        // dsh-memory-scoped listens for this local process event. `/new` only
++        // clears the conversation binding; it does not create a DSH session,
++        // so this is the earliest reliable workspace-level cue.
++        const previousSessionId = this.#state.sessionFor(key);
++        const workspace = typeof this.#harness.currentConversationWorkspace === 'function'
++          ? this.#harness.currentConversationWorkspace(key)
++          : typeof this.#harness.currentWorkspace === 'function'
++            ? this.#harness.currentWorkspace()
++            : null;
+         await this.#state.clearSession(key);
++        try {
++          globalThis.process?.emit?.('dsh-im/new-session', {
++            channel: 'weixin', key, previousSessionId, workspace, at: Date.now(),
++          });
++        } catch { /* a listener must never break /new */ }
+         await this.#send(sender, t('已开启新会话。请发送你的问题。'), contextToken, runId);
+         await this.#state.markSeen(messageId);
+         return;
+

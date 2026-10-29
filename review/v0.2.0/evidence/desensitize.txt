@@ -1,0 +1,12 @@
+﻿scanned_text_files: 75
+private_user_dir: 0
+private_assistant_name: 0
+private_role_word: 0
+private_memory_dir: 0
+private_workspace_id: 0
+known_private_session: 0
+literal_old_bundle: 0
+package_name_scoped: true
+client_bundle_id_scoped: true
+default_private_workspace_empty: true
+curator_prompt_without_private_name: true

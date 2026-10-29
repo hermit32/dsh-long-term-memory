@@ -50,9 +50,14 @@ function normalizeRun(raw) {
   const addedIds = strings(raw.addedIds)
   const updatedIds = strings(raw.updatedIds)
   const mergedIds = strings(raw.mergedIds)
+  const sessionIds = strings(raw.sessionIds, 16)
+  const deferredSessionIds = strings(raw.deferredSessionIds, 32)
   if (addedIds.length > 0) run.addedIds = addedIds
   if (updatedIds.length > 0) run.updatedIds = updatedIds
   if (mergedIds.length > 0) run.mergedIds = mergedIds
+  if (sessionIds.length > 0) run.sessionIds = sessionIds
+  if (deferredSessionIds.length > 0) run.deferredSessionIds = deferredSessionIds
+  if (raw.workspace === true) run.workspace = true
   if (typeof raw.error === 'string' && raw.error.length > 0) run.error = raw.error.slice(0, 500)
   return run
 }

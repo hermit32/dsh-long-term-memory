@@ -27,9 +27,12 @@
    - `routeScope` 固定为 `workspace`；显式 `global` / `project` 直接拒绝。
    - 不注册全局 `auto-memory` 技能（会出现在所有工作区目录）；记忆规则改放在
      私人工作区的 `CLAUDE.md`。
-2. **按有效回合触发（按会话，不是按工作区）**
+2. **按有效回合触发（工作区统一累计）**
    - 每个真实用户消息 + 助手答复记 1 个有效回合；schedule / subagent / 系统注入不计。
-   - 每个会话独立累计，达到 `curateEveryTurns`（默认 20）触发一次后台 curator。
+   - 工作区内全部 owned 根会话的未整理回合之和达到 `curateEveryTurns`（默认 20）
+     时触发一次工作区 curator；每个会话保留独立 cursor。
+   - 一次任务按最久未整理优先，每批最多 8 个会话，最多串行 8 批（64 个会话）；
+     剩余写入 `deferredSessionIds`，不静默丢弃。
    - `pending-turns.json` 只存 `cursorSeq / countedSeq / pendingTurns / lifetimeTurns /
      owned`，不存对话正文。
 3. **后台 curator**
@@ -44,8 +47,12 @@
    - 只有“不在 `ctx.sessions.list()` 活跃集合中、且最后活动超过 `orphanGraceMs`”
      的会话才提前整理。
    - 新建会话本身不因此被整理；无法确认活跃状态时保留游标，不删除。
-5. **凭据**
+5. **凭据与 MCP 作用域**
    - `memory_add` / `memory_update` 始终检测凭据；删除 `allowSecret` 参数，不能绕过。
+   - 独立 MCP server 的 add/update/merge 同样始终检测；不存在 `allowSecret`，
+     也没有环境变量可以关闭写入拒绝。
+   - MCP 作用域默认拒绝：`workspace` / `project` 只允许 `DSH_MEMORY_ALLOWED_ROOTS`
+     内的路径，`global` 需显式 `DSH_MEMORY_ALLOW_GLOBAL=1`；未知 scope 直接报错。
    - curator 的每条 content 也经过 `detectSecrets`，命中即拒绝整批。
 6. **人设分离**
    - `seedFromAgentsMd: false`，不把人设灌进记忆。

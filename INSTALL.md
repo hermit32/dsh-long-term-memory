@@ -1,4 +1,4 @@
-# INSTALL.md — 从干净环境复现
+# INSTALL.md — 长期记忆解决方案的部署与升级（v0.2.0）
 
 > **状态：安装步骤未在干净机器上完整验证。** 本文的每一步都对应本机实际运行状态，
 > 但“从零开始照做一遍”没有做过。请按 `review/REPRODUCTION_AUDIT.md` 的清单逐项
@@ -12,7 +12,7 @@
 | Host 协议版本 | 4（`desktop-runtime.json`） |
 | 捆绑 Node / pnpm | 24.21.0 / 11.28.5 |
 | 本包测试用 Node | 24.22.1 |
-| 记忆插件 | `dsh-memory-scoped` 0.6.0-local.1（上游 fork） |
+| 记忆插件 | `dsh-memory-scoped` 0.2.0（上游 fork） |
 | 会话删除插件 | `@liuyu-f/dsh-plugin-session-cascade-delete` 1.0.6-local.1（上游 1.0.6 修改版） |
 | IM 插件 | `@xmanrui/dsh-im` 5.6.0 |
 
@@ -94,7 +94,7 @@ dsh plugin --profile desktop add "file:C:\Workspaces\plugins\dsh-plugin-session-
 
 - `privateWorkspace`：你的私人工作区**绝对路径**（必须是精确路径，不能留空）。
 - `memoryDir`：记忆数据目录（不要把记忆放进会被 Git 跟踪的仓库目录）。
-- `curateEveryTurns`：每个会话的有效回合阈值，默认 20。
+- `curateEveryTurns`：私人工作区**所有 owned 根会话未整理有效回合合计**的阈值，默认 20（不是单会话计数）。
 
 ## 5. 指定私人工作区
 
@@ -151,6 +151,14 @@ dsh plugin --profile desktop add "file:C:\Workspaces\plugins\dsh-plugin-session-
   **不删除任何长期记忆条目**。
 - 如果不想让删除级联子代理，在 patch 里设 `deleteSubagents: false`。
 
+## v0.2.0 升级与整理触发（重要）
+
+本版增加**工作区级统一累计 20 轮**：各私人根会话的未整理回合数求和；触发后按会话独立读取事件、更新游标及来源记录。新建私人根会话 `startup` 也可触发；打开旧会话 `resume` 不应触发。最多一次连续处理 64 个会话，剩余进入 deferred。
+
+**已安装旧的私人化记忆插件的用户**：先按 [`plugins/memory/MIGRATION.md`](plugins/memory/MIGRATION.md) 备份 `<memoryDir>`、停止旧插件并清理其 loader row，**不要让两个插件同时使用同一个记忆目录**。先在测试 profile 验证，再迁移生产配置。独立 MCP 有额外的作用域白名单限制，见 [`plugins/memory/README.md`](plugins/memory/README.md)。
+
+**微信 `/new` 即时整理是可选补丁功能**：使用 [patches/README.md](patches/README.md) 和 `node patches/apply-dsh-im-patch.mjs`，脚本会修改本机已安装的 `@xmanrui/dsh-im` 源码及 bundle，升级后可能失效；**先备份、检查目标版本，不要把此命令当成自动安装步骤**。未安装补丁时，正常的 20 轮阈值和新建私人会话触发逻辑仍存在。本项目尚未验证真实微信 `/new` 端到端动作。
+
 ## 10. 接入微信
 
 1. 安装 `@xmanrui/dsh-im@5.6.0`（MIT，
@@ -202,12 +210,11 @@ cd plugins\session-manager;      node --test
 cd tests;                        .\run-all.ps1
 ```
 
-纯 Node，不需要 DSH 宿主、不需要网络。测试会把数据写到系统临时目录。
+核心自动化测试使用 Node；少数测试涉及 DSH peer 包会跳过。独立 MCP 直接调用与补丁矩阵使用临时目录；完整 Curator acceptance harness 需要可解析的 DSH peer 包。
 验收套件里的 Windows 路径作用域用例只在 Windows 上执行；其他平台会跳过并改跑
 可移植路径用例（原因见 `review/TEST_RESULTS.md`）。
 
-**平台状态**：单元测试在 Windows（Node 24）上实测通过；其他平台本轮**未运行**；
-干净环境**未复现**。
+**平台状态**：最新记忆包在 Linux / Node 22.16.0 独立复测为 187 项（184 通过、3 跳过）；历史 Windows / Node 24 测试见 [`review/v0.2.0/TEST-REPORT.md`](review/v0.2.0/TEST-REPORT.md)。**并不等于 Linux/macOS DSH Desktop 集成可用，也不等于干净环境已复现。**
 
 ## 14. 卸载 / 安全回滚
 

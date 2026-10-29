@@ -1,0 +1,38 @@
+﻿✔ MCP tool schemas do not expose an allowSecret switch (83.248ms)
+✔ memory_add rejects credential content and stores nothing (84.059ms)
+✔ memory_add rejects the removed allowSecret argument even for benign content (86.6572ms)
+✔ memory_update rejects credential content and keeps the previous entry (110.7953ms)
+✔ DSH_MEMORY_REDACT=0 cannot disable write-time credential rejection (86.1104ms)
+✔ global scope is denied unless explicitly enabled (75.1039ms)
+✔ workspace scope outside DSH_MEMORY_ALLOWED_ROOTS is denied (78.5232ms)
+✔ unknown scope values are rejected instead of falling back to global (78.4026ms)
+✔ allowed workspace scope writes one stable scoped store, not the global root (132.2662ms)
+✔ memory_merge refuses to launder a credential stored before this policy (153.2865ms)
+✔ memory_merge rejects duplicate ids instead of skipping the credential scan (129.6477ms)
+✔ memory_add rejects credential tags and writes nothing to disk (96.5399ms)
+✔ memory_update rejects credential tags and leaves the stored entry untouched (131.9601ms)
+✔ memory_merge rejects credential tags in any target and writes nothing (141.8714ms)
+✔ memory_update refuses to preserve legacy credential content on an unrelated edit (141.3036ms)
+✔ memory_merge verifies the final merged content and tag union on disk (159.7042ms)
+✔ memory_merge follows storage order for equal-length content, not request order (172.6164ms)
+✔ memory_merge scans tags past the 16-tag cap regardless of request order (189.4427ms)
+✔ memory_merge rejects a credential in a participant that would lose the content tie (204.7978ms)
+✔ oversized tag errors never echo the tag and never reach stderr (166.3939ms)
+✔ memory_delete never copies credential content into the journal (164.9303ms)
+✔ memory_merge persists the store plan tag order and 16-tag cap on disk (197.426ms)
+ℹ tests 22
+ℹ suites 0
+ℹ pass 22
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2979.5747
+
+mutation checks (run manually against the same suite):
+- round-2 bin/dsh-memory-mcp.mjs + lib/store.js (restored from the previous ZIP) were
+  swapped in: 4 of 21 security tests failed (storage-order equal-length content, 16-tag
+  cap permutations, non-selected participant with a legacy credential, oversized-tag echo);
+  the fixed files were restored and hash-checked afterwards
+- allowSecret declaration reintroduced into the schema: scripts/check-release.mjs exit 1,
+  both the static schema gate and the security suite failed; file restored afterwards

@@ -1,0 +1,45 @@
+# config.example.yml — profile patch fragment (EXAMPLE)
+#
+# This is a fragment of the profile patch layer, not a complete composition.
+# Merge it into <DSH_HOME>/profiles/<profile>/cordis.patch.yml.
+# Replace every <PLACEHOLDER> and example path before use.
+#
+# YAML note: single-quoted strings keep backslashes literal on Windows.
+
+# Mount the scoped bundle. The row id is also the settings namespace.
+- insert:
+    - id: dsh-memory-scoped
+      name: dsh-memory-scoped
+
+# The row that owns the policy. privateWorkspace is a security boundary: it
+# must be the exact absolute path of the one allowed workspace. Leave it empty
+# to disable memory.
+- id: dsh-memory-scoped
+  config:
+    privateWorkspace: 'C:\Workspaces\private'
+    memoryDir: 'C:\Workspaces\private\.dsh\memories-scoped'
+    scopedMemory: true
+    readOnlyScopes:
+      - global
+    seedFromAgentsMd: false
+    autoSummarize: true
+    # Workspace-wide total: sum of uncurated effective turns over all owned
+    # root sessions, NOT a per-session threshold. 20 = 8+6+6 across A/B/C.
+    curateEveryTurns: 20
+    curateMaxOps: 8
+    curateMaxAdds: 3
+    curateMaxBytes: 24000
+    curateEntriesShown: 80
+    curateMaxTokens: 2000
+    orphanGraceMs: 300000
+    flushOrphansOnStart: true
+    flushOrphansOnNewSession: true
+    captureSubagents: false
+    maxBytes: 3000
+    scopeMaxBytes: 1200
+    injectTokens: 1200
+    consolidateEvery: 5
+    consolidateMaxBytes: 12000
+    consolidateMaxTokens: 4096
+    maxActiveSummaries: 1
+    redactSecrets: true

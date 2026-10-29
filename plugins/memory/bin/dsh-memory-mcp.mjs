@@ -3,17 +3,29 @@
 //
 // It reuses lib/store.js only (no DeepSeek Harness runtime), so it can be
 // attached to any MCP client (Codex/Claude/etc.) that can spawn:
-//   node E:/git/github/dsh-Plugin/bin/dsh-memory-mcp.mjs
+//   node <package>/bin/dsh-memory-mcp.mjs
 //
-// Environment:
-//   DSH_MEMORY_DIR          memory root (default ~/.dsh/memories)
-//   DSH_MEMORY_REDACT       reject/redact credential-looking content (default 1)
+// Security model (non-negotiable):
+//   - Credential-looking content is always rejected on write: memory_add,
+//     memory_update and memory_merge. There is no `allowSecret` switch and no
+//     environment variable that can disable the scan.
+//   - Scopes are deny-by-default. `workspace` and `project` only resolve inside
+//     a root listed in DSH_MEMORY_ALLOWED_ROOTS; the shared `global` store
+//     requires DSH_MEMORY_ALLOW_GLOBAL=1. A client-supplied cwd never creates
+//     an arbitrary scope.
 //
-// Tools carry an optional `scope` argument. `global` (default) uses the root
-// store; `workspace`/`project` use `cwd` to derive ws-/project- keys.
+// Environment (trusted operator configuration, set when spawning the server):
+//   DSH_MEMORY_DIR            memory root (default ~/.dsh/memories)
+//   DSH_MEMORY_ALLOWED_ROOTS  path-delimited absolute workspace roots; each
+//                             configured root maps to exactly one workspace
+//                             scope (subdirectories resolve to that root)
+//   DSH_MEMORY_ALLOW_GLOBAL   set to 1 to enable the shared global scope
+//
+// Tools carry an optional `scope` argument: global, workspace, or project.
+import { realpathSync } from 'node:fs'
 import { createInterface } from 'node:readline'
 import { homedir } from 'node:os'
-import { join } from 'node:path'
+import { delimiter, isAbsolute, join, resolve, sep } from 'node:path'
 import {
   MemoryStore,
   RAW_FILE,
@@ -36,7 +48,7 @@ import {
 const rootDir = process.env.DSH_MEMORY_DIR && process.env.DSH_MEMORY_DIR.trim().length > 0
   ? process.env.DSH_MEMORY_DIR.trim()
   : join(homedir(), '.dsh', 'memories')
-const redact = process.env.DSH_MEMORY_REDACT !== '0'
+const allowGlobal = process.env.DSH_MEMORY_ALLOW_GLOBAL === '1'
 const embedding = process.env.DSH_MEMORY_EMBEDDING_BASEURL && process.env.DSH_MEMORY_EMBEDDING_MODEL
   ? {
       baseURL: process.env.DSH_MEMORY_EMBEDDING_BASEURL.trim(),
@@ -57,23 +69,125 @@ function storeForScope(key) {
   return store
 }
 
+// Resolve symlinks when the path exists so a link inside an allowed root
+// cannot be used to escape it. Non-existent paths stay lexical: containment is
+// then a plain prefix check and no write can land outside the root.
+function canonicalPath(value) {
+  const absolute = resolve(value)
+  try {
+    return realpathSync.native(absolute)
+  } catch {
+    return absolute
+  }
+}
+
+function comparablePath(value) {
+  const canonical = canonicalPath(value)
+  return process.platform === 'win32' ? canonical.toLowerCase() : canonical
+}
+
+function parseAllowedRoots(value) {
+  const raw = String(value ?? '').trim()
+  if (raw.length === 0) return []
+  const roots = []
+  const seen = new Set()
+  for (const part of raw.split(delimiter)) {
+    const entry = part.trim()
+    if (entry.length === 0) continue
+    if (!isAbsolute(entry)) {
+      throw new Error('memory: every DSH_MEMORY_ALLOWED_ROOTS entry must be an absolute path')
+    }
+    // Containment uses the symlink-resolved path, but the scope key is derived
+    // from the configured spelling: the host plugin hashes the session cwd
+    // verbatim, so the MCP must produce the same ws- key for the same string.
+    const resolvedRoot = canonicalPath(entry)
+    const compare = process.platform === 'win32' ? resolvedRoot.toLowerCase() : resolvedRoot
+    if (seen.has(compare)) continue
+    seen.add(compare)
+    roots.push({ compare, keyPath: resolve(entry) })
+  }
+  return roots
+}
+
+let allowedRoots = []
+let allowedRootsError
+try {
+  allowedRoots = parseAllowedRoots(process.env.DSH_MEMORY_ALLOWED_ROOTS)
+} catch (error) {
+  allowedRootsError = error
+}
+
+function allowedRootFor(cwd) {
+  const target = comparablePath(cwd)
+  return allowedRoots.find((workspaceRoot) => {
+    return target === workspaceRoot.compare ||
+      target.startsWith(workspaceRoot.compare.endsWith(sep) ? workspaceRoot.compare : `${workspaceRoot.compare}${sep}`)
+  })
+}
+
+function assertNoSecrets(text, tool, field = 'content') {
+  const secrets = detectSecrets(text)
+  if (secrets.length > 0) {
+    throw new Error(`${tool}: ${field} looks like a credential (${secrets.map((item) => item.type).join(', ')}); credentials are never stored`)
+  }
+}
+
+function assertNoSecretTags(tags, tool) {
+  const list = Array.isArray(tags) ? tags : []
+  for (const tag of list) assertNoSecrets(tag, tool, 'tag')
+}
+
+// Deleting a legacy tainted entry must not copy its credential into the
+// journal: the journal is another persisted file and is replayed on rollback.
+// Clean entries are journaled verbatim; tainted ones keep their metadata only.
+function journalEntrySnapshot(entry) {
+  const contentSecrets = detectSecrets(entry.content)
+  const tags = Array.isArray(entry.tags) ? entry.tags : []
+  const taintedTags = tags.some((tag) => detectSecrets(tag).length > 0)
+  if (contentSecrets.length === 0 && !taintedTags) return entry
+  return {
+    ...entry,
+    content: '[redacted: credential content removed on delete]',
+    tags: tags.map((tag) => (detectSecrets(tag).length > 0 ? '[redacted]' : tag))
+  }
+}
+
+function requestedScope(value) {
+  const raw = String(value ?? '').trim()
+  if (raw.length === 0) return 'global'
+  const scope = normalizeScopeArg(raw)
+  if (scope === undefined) throw new Error("memory: unknown scope; expected 'global', 'workspace' or 'project'")
+  return scope
+}
+
 async function route(args = {}) {
-  const scope = normalizeScopeArg(args.scope)
+  const scope = requestedScope(args.scope)
+  if (scope === 'global') {
+    if (!allowGlobal) {
+      throw new Error('memory: global scope is disabled by default; set DSH_MEMORY_ALLOW_GLOBAL=1 to enable it')
+    }
+    return { key: 'global', store: root }
+  }
+  if (allowedRootsError !== undefined) throw allowedRootsError
+  const cwd = String(args.cwd ?? '').trim()
+  if (cwd.length === 0) throw new Error(`memory: '${scope}' scope requires cwd`)
+  const workspaceRoot = allowedRootFor(cwd)
+  if (workspaceRoot === undefined) {
+    throw new Error(`memory: '${scope}' scope is restricted to DSH_MEMORY_ALLOWED_ROOTS; cwd is outside every configured root`)
+  }
   if (scope === 'workspace') {
-    const cwd = String(args.cwd ?? '').trim()
-    if (cwd.length === 0) throw new Error("memory: 'workspace' scope requires cwd")
-    const key = scopeKeyForCwd(cwd)
+    // One configured root is one workspace: every subdirectory resolves to the
+    // same scope key instead of minting an arbitrary new scope from cwd.
+    const key = scopeKeyForCwd(workspaceRoot.keyPath)
     return { key, store: storeForScope(key) }
   }
-  if (scope === 'project') {
-    const cwd = String(args.cwd ?? '').trim()
-    if (cwd.length === 0) throw new Error("memory: 'project' scope requires cwd")
-    const gitRoot = await findGitRoot(cwd)
-    if (gitRoot === undefined) throw new Error('memory: no git repository found for project scope')
-    const key = projectScopeKey(gitRoot)
-    return { key, store: storeForScope(key) }
+  const gitRoot = await findGitRoot(cwd)
+  if (gitRoot === undefined) throw new Error('memory: no git repository found for project scope')
+  if (allowedRootFor(gitRoot) === undefined) {
+    throw new Error("memory: 'project' scope is restricted to DSH_MEMORY_ALLOWED_ROOTS; repository root is outside every configured root")
   }
-  return { key: 'global', store: root }
+  const key = projectScopeKey(gitRoot)
+  return { key, store: storeForScope(key) }
 }
 
 const tools = [
@@ -90,7 +204,7 @@ const tools = [
   },
   {
     name: 'memory_add',
-    description: 'Store one durable fact. Duplicates and obvious credentials are rejected by default.',
+    description: 'Store one durable fact. Duplicates are rejected by default; credential-looking content is always rejected.',
     inputSchema: {
       type: 'object',
       required: ['content'],
@@ -99,7 +213,6 @@ const tools = [
         tags: { type: 'array', items: { type: 'string' } },
         importance: { type: 'number', description: '0-3, default 1' },
         allowDuplicate: { type: 'boolean' },
-        allowSecret: { type: 'boolean' },
         scope: { type: 'string' },
         cwd: { type: 'string' }
       }
@@ -204,6 +317,9 @@ const tools = [
 ]
 
 async function callTool(name, args = {}) {
+  if (Object.prototype.hasOwnProperty.call(args, 'allowSecret')) {
+    throw new Error('memory: allowSecret is not supported; credential-looking content is always rejected on write')
+  }
   const target = await route(args)
   const store = target.store
   switch (name) {
@@ -215,11 +331,9 @@ async function callTool(name, args = {}) {
     }
     case 'memory_add': {
       const content = validateContent(args.content)
-      if (redact && args.allowSecret !== true) {
-        const secrets = detectSecrets(content)
-        if (secrets.length > 0) throw new Error(`content looks like a credential (${secrets.map((item) => item.type).join(', ')}); pass allowSecret: true to store it`)
-      }
+      assertNoSecrets(content, 'memory_add')
       const tags = normalizeTags(args.tags)
+      assertNoSecretTags(tags, 'memory_add')
       const importance = Number.isFinite(args.importance) ? Math.min(3, Math.max(0, Math.trunc(args.importance))) : 1
       return store.withLock(async () => {
         if (args.allowDuplicate !== true) {
@@ -249,6 +363,16 @@ async function callTool(name, args = {}) {
       if (args.tags !== undefined) patch.tags = normalizeTags(args.tags)
       if (args.importance !== undefined) patch.importance = Math.min(3, Math.max(0, Math.trunc(args.importance)))
       return store.withLock(async () => {
+        // Validate the state that will actually be stored, not only the fields
+        // the caller supplied: an update must never preserve a credential in a
+        // legacy entry written before this policy existed.
+        const entries = await store.readRawEntries()
+        const existing = entries.find((entry) => entry.id === id)
+        if (existing === undefined) throw new Error('memory_update: entry not found')
+        const finalContent = patch.content !== undefined ? patch.content : existing.content
+        const finalTags = patch.tags !== undefined ? patch.tags : existing.tags
+        assertNoSecrets(finalContent, 'memory_update')
+        assertNoSecretTags(finalTags, 'memory_update')
         const entry = await store.updateRawEntry(id, patch)
         await store.appendJournal({ op: 'update', id: entry.id, ts: entry.ts, entry })
         return entry
@@ -259,19 +383,37 @@ async function callTool(name, args = {}) {
       if (id.length === 0) throw new Error('id is required')
       return store.withLock(async () => {
         const entry = await store.deleteRawEntry(id)
-        await store.appendJournal({ op: 'delete', id: entry.id, ts: entry.ts, entry })
+        await store.appendJournal({ op: 'delete', id: entry.id, ts: entry.ts, entry: journalEntrySnapshot(entry) })
         return { id }
       })
     }
     case 'memory_merge': {
-      const ids = Array.isArray(args.ids) ? args.ids.map((id) => String(id).trim()).filter(Boolean) : []
-      if (ids.length < 2) throw new Error('at least two entry ids are required')
+      const requested = Array.isArray(args.ids) ? args.ids.map((id) => String(id).trim()).filter(Boolean) : []
+      if (requested.length < 2) throw new Error('at least two entry ids are required')
+      // Duplicates are rejected before the store sees them; the store would
+      // otherwise dedupe and merge a different set than the caller listed.
+      const ids = [...new Set(requested)]
+      if (ids.length !== requested.length) throw new Error('memory_merge: duplicate entry ids are not allowed')
       const keepId = String(args.keepId !== undefined ? args.keepId : ids[0]).trim()
+      if (!ids.includes(keepId)) throw new Error('memory_merge: keepId must be one of ids')
       return store.withLock(async () => {
-        const { kept, removed } = await store.mergeRawEntries(ids, keepId)
+        const { kept, removed } = await store.mergeRawEntries(ids, keepId, {
+          // The store builds the single merge plan in raw-file order and hands
+          // that exact plan to this validator before writing. Scanning every
+          // participant also covers the delete events the caller journals for
+          // removed entries, so a legacy credential cannot reach raw or journal.
+          validate: (plan, targets) => {
+            for (const entry of targets) {
+              assertNoSecrets(entry.content, 'memory_merge')
+              assertNoSecretTags(Array.isArray(entry.tags) ? entry.tags : [], 'memory_merge')
+            }
+            assertNoSecrets(plan.kept.content, 'memory_merge')
+            assertNoSecretTags(plan.kept.tags, 'memory_merge')
+          }
+        })
         await store.appendJournal({ op: 'update', id: kept.id, ts: kept.ts, entry: kept })
         for (const entry of removed) await store.appendJournal({ op: 'delete', id: entry.id, ts: entry.ts, entry })
-        return { id: kept.id, mergedIds: [kept.id, ...removed.map((entry) => entry.id)], content: kept.content }
+        return { id: kept.id, mergedIds: [kept.id, ...removed.map((entry) => entry.id)], content: kept.content, tags: kept.tags }
       })
     }
     case 'memory_review': {
@@ -314,7 +456,7 @@ async function callTool(name, args = {}) {
       }
     }
     default:
-      throw new Error(`unknown tool ${name}`)
+      throw new Error('unknown tool')
   }
 }
 

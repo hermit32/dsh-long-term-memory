@@ -444,14 +444,19 @@ export class MemoryConsoleService {
       }
       runs = [lastRun]
     }
-    const next = sessions.filter((session) => session.owned && session.pendingTurns > 0)
-      .reduce((min, session) => Math.min(min, session.remaining), every)
+    // The threshold is workspace-wide: A=8, B=6, C=6 is 20 even though no
+    // single session reaches it. Keep per-session remaining for diagnostics,
+    // but compute the live countdown from the owned-session sum.
+    const workspacePending = sessions
+      .filter((session) => session.owned)
+      .reduce((sum, session) => sum + session.pendingTurns, 0)
+    const next = Math.max(0, every - workspacePending)
     return {
       running: Array.isArray(runtime.running) ? runtime.running : [],
       consolidating: runtime.consolidating === true,
       everyTurns: every,
       lifetimeTurns: Number.isFinite(pending.lifetimeTurns) ? pending.lifetimeTurns : 0,
-      pendingTurns: sessions.reduce((sum, session) => sum + session.pendingTurns, 0),
+      pendingTurns: workspacePending,
       nextIn: next,
       sessions,
       lastRun,

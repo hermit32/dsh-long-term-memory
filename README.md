@@ -1,181 +1,99 @@
-# DeepSeek Harness Private AI Workspace · v0.1.0 技术预览版
+# DeepSeek Harness 长期记忆解决方案 · v0.2.0 技术预览版
 
-> **技术预览版 / 非一键安装**：这是一套从实际使用的 DSH 本地扩展中整理、脱敏的参考实现。
-> 单元与隔离测试已在 Windows 和 Linux（部分 Windows 专用测试会跳过）复核；**尚未完成干净环境完整安装、真实微信端到端链路与跨平台运行的全面验证**。
-> 请先阅读 [功能状态](STATUS.md)、[安装指引](INSTALL.md)及[安全审计](review/SECURITY_AUDIT.md)。
+> **让 AI 在不同会话之间持续记住重要信息。** 本项目为 DeepSeek Harness 提供一套**可复现、可审计、按工作区隔离的长期记忆解决方案**：自动提取和整理多会话记忆、将摘要注入后续对话，并让用户查看、编辑、追溯和恢复记忆。
+>
+> **Technical Preview / 非官方项目 / 非一键部署**。插件代码和自动化测试已公开；真实微信 `/new`、真实外部模型累计 20 轮以及桌面冷启动的端到端验收尚未完成。请先阅读[状态与限制](STATUS.md)和[安装说明](INSTALL.md)。
 
-## 架构图
+![项目整体架构图](./DeepSeek%20私人%20AI%20工作区架构图.png)
 
-![DeepSeek Harness 私人 AI 工作区架构图](./DeepSeek%20私人%20AI%20工作区架构图.png)
+*架构图展示整个私人 AI 工作区方案。**本项目的核心是长期记忆**；会话管理、微信桥接和单向通知是支持性组件。图中内容以当前源码及 [STATUS.md](STATUS.md) 为准。*
 
-> 图片为**总体架构和演进蓝图**：其中“跨会话累计 20 轮”及“新建会话立即整理”为**规划功能，不属于 v0.1.0 的已实现范围**。以本 README 和 [STATUS.md](STATUS.md) 的功能状态为准。
+## 为什么做这个项目？
 
-## 关键链接
+AI 助手的一次会话结束后，重要的偏好、约定与经验很容易散落在历史聊天里；仅依靠对话长度和手工提示词，难以维持长期一致性。
 
-- [安装与复现说明](INSTALL.md) · [详细架构与信任边界](ARCHITECTURE.md) · [功能状态](STATUS.md)
-- [隐私与安全审查](review/SECURITY_AUDIT.md) · [测试记录](review/TEST_RESULTS.md) · [第三方许可](THIRD_PARTY_NOTICES.md)
-- 上游：[DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)、[dsh-memory](https://github.com/haitang1/dsh-memory)、[dsh-im](https://github.com/xmanrui/dsh-im)
+这份方案希望解决四个具体问题：
 
+1. **跨会话持续记忆**：把经过验证的事实与约定保存在独立持久化记忆库中，下一次对话自动提供有界摘要。
+2. **自动整理，而不必手动总结每段聊天**：同一私人工作区的多个根会话累计 **20 个待整理有效回合**即可触发 Curator；新建私人会话也可启动整理。
+3. **记忆可控、可追溯**：记录来源会话和事件位置，提供搜索、修改、删除、版本历史与回滚，避免把未经证实的模型推测写成用户经历。
+4. **工作区分离**：私人工作区使用长期记忆；工作区 A、工作区 B 不获得同一套记忆工具和提示词注入。注意这是**应用层**隔离，不是操作系统文件权限隔离。
 
-## 命名约定
+这不是通用的云端记忆 SaaS，也不承诺任何模型“永不遗忘”。它是一套适配 **DeepSeek Harness Desktop** 的本地插件架构与复现实践。
 
-本包统一使用三个匿名名称：
+## 核心功能
 
-- **私人工作区**：唯一允许使用长期记忆、并绑定 IM 的工作区；
-- **工作区 A**、**工作区 B**：其他工作区，只能单向发送通知，不能读写私人记忆。
+| 能力 | v0.2.0 实现方式 | 验证状态 |
+| --- | --- | --- |
+| 跨会话长期记忆 | 持久化 raw/summary、提示词注入、14 个 `memory_*` 工具 | 有单元测试；宿主端到端有限 |
+| **工作区统一累计 20 轮** | 对全部 owned 私人根会话的未整理 `pendingTurns` 求和，不依赖 `lifetimeTurns` | 自动化测试通过 |
+| **批量 Curator 整理** | 最久未处理优先；每批最多 8 个会话，每任务最多 8 批；每个会话独立游标 | 隔离 harness 有历史通过证据；本轮未重跑完整 harness |
+| 新建会话触发 | 桌面私人根会话 `startup` 触发，`resume` 不触发 | 合成事件通过；真实桌面冷启动待验 |
+| 微信 `/new` 触发 | 可选 [`dsh-im` 本地桥接补丁](patches/README.md) | 模拟事件和补丁矩阵通过；真实微信未验 |
+| 来源追踪与安全筛选 | provenance、transcript attribution、凭据拒写、失败重试与游标恢复 | 单元/MCP 安全测试通过；仍有边界限制 |
+| 管理控制台 | 查询/修改记忆、查看来源、历史与回滚 | 相关测试通过；UI 视觉未复验 |
+| 独立 MCP 记忆接口 | 可选 stdio MCP server，写入凭据检测与作用域白名单 | 安全回归通过；与宿主插件安全路径不完全相同 |
 
-示例路径 `C:\Workspaces\private`、`C:\Workspaces\work-a`、`C:\Workspaces\work-b`
-都是占位符，请替换为你自己的目录。
+**例子：** 会话 A 待整理 8 轮 + 会话 B 6 轮 + 会话 C 6 轮 = 20 轮，触发一次工作区任务；A/B/C 分别拥有自己的游标和来源证据，成功处理后仅扣除已经处理的回合。详见[插件设计](plugins/memory/README.md)和[自动化测试](review/v0.2.0/ACCEPTANCE.md)。
 
-## 这是什么
-
-一套运行在 **DeepSeek Harness** 上的「私人工作区」个性化框架：
-
-- 一个只对指定工作区开放的**长期记忆**插件（后台模型定期整理、来源可追溯、带认证
-  控制台）；
-- 一个按工作区隔离的**会话删除**插件修改版（级联子代理、不误删长期记忆）；
-- 一套“私人工作区接微信、工作区 A/工作区 B 只能单向发通知”的**共享通知**脚本；
-- 人设/记忆规则/配置模板，以及可复现的测试与审计材料。
-
-它解决的具体问题是：让 AI 助手在**私人工作区**里长期记住你，同时让工作区 A、工作区 B
-既看不到也写不进这份记忆；并且让这些工作区能主动通知你，但拿不到微信的回复权限。
-
-**重要边界**：这里的“看不到/写不进”是 Harness 的**工具与提示词隔离**，不是操作系统
-级文件隔离。详见下文“这不是操作系统级隔离”。
-
-## 首版范围
-
-第一版只包含：
-
-1. 核心记忆插件（`plugins/memory/`）；
-2. 会话管理插件修改版（`plugins/session-manager/`）；
-3. 通知脚本（`scripts/notify/`）；
-4. 配置/人设/记忆规则模板（`examples/`）；
-5. 测试与审计材料（`tests/`、`review/`）。
-
-**可选组件不在 v0.1.0 公开范围内**，见文末“可选组件”。
-
-## 目录
+## 项目组成
 
 ```text
 dsh-private-ai-workspace/
-├── .gitignore               排除真实配置、密钥、记忆、日志、队列、备份、依赖
-├── README.md                项目主页
-├── INSTALL.md               从干净环境复现的 14 步
-├── ARCHITECTURE.md          组件、数据流、信任边界
-├── STATUS.md                已完成 / 未实现 / 未验证
-├── THIRD_PARTY_NOTICES.md    逐组件许可证核查
-├── LICENSE.md               组件级许可与修改说明
 ├── plugins/
-│   ├── memory/              dsh-memory-scoped（上游 fork，含测试）
-│   └── session-manager/     session-cascade-delete（上游 1.0.6 修改版，含测试）
-├── examples/                人设、记忆规则、全局规则、profile 配置、标签
-├── scripts/notify/          单向通知脚本 + 主机发现 + 示例配置
-├── tests/                   一键跑全部测试 + 隐私扫描 + 验收用例
-└── review/                  文件清单、安全/许可/复现审计、测试结果
+│   ├── memory/               核心：dsh-memory-scoped 0.2.0、Curator、MCP、控制台、测试
+│   └── session-manager/      辅助：按工作区隔离的会话删除插件（本地修改版）
+├── patches/                  可选：dsh-im 的微信 /new 事件桥接补丁及安全测试
+├── scripts/notify/           辅助：工作区 A/B 单向通知微信
+├── examples/                 匿名化的人设与配置模板
+├── tests/                    原有整体隔离与打包测试
+├── review/                   v0.1 历史审计及 v0.2.0 验收证据
+├── INSTALL.md                安装与升级说明
+├── ARCHITECTURE.md           组件与数据流
+├── STATUS.md                 功能状态、风险和未验证项
+└── THIRD_PARTY_NOTICES.md    上游许可与修改说明
 ```
 
-## 已实现（有代码 + 单元测试）
+**记忆插件是主体。** 会话管理插件和通知脚本是可选的完整工作区方案，**不需要安装它们才能理解长期记忆的实现**；微信 `/new` 即时触发则需要补丁，其他方式的整理与该补丁无关。
 
-- 长期记忆：注入、14 个工具、按**会话**累计有效回合、后台 curator、provenance、
-  journal/历史/回滚、并发锁与原子写、凭据拒绝。
-- 记忆控制台：列表/搜索/筛选/增删改/来源与证据/历史恢复/整理记录/参数设置。
-- 鉴权 fail-closed：没有 `connection.requestRejection` 时返回 503，没有 loopback
-  降级。
-- 会话删除：模型工具按调用方工作区隔离；删除成功后通知记忆插件清理 pending 状态，
-  不删除长期记忆。
-- 通知：运行时发现 Host 端口、进程归属校验、去重、失败队列、显式补发。
+## 快速开始（Windows / DSH Desktop）
 
-## 未实现 / 未验证（不要宣传成已完成）
+环境基线：DSH Desktop `0.2.1-rc.3`；Node.js `>=20.3`。完整安装步骤见 [INSTALL.md](INSTALL.md)，升级已有部署先读 [MIGRATION.md](plugins/memory/MIGRATION.md)。
 
-- **全工作区统一累计回合：未实现。** 当前是**每个会话**独立累计 20 个有效回合。
-- **新建会话立即整理：未实现。** 新建私人会话只会在 60 秒后触发一次“非活跃会话
-  兜底扫描”，不会立即整理该会话。
-- 微信 `/new` 触发整理：未验证；依赖上游 `dsh-im` 的事件映射。
-- 真实 20 轮后 curator 成功写入的端到端链路：未验证。
-- 干净环境安装：未复现。
-- 微信以外的 IM 平台：未验证。
-- 控制台 UI 视觉回归：未验证。
-- Linux / macOS 上的实际 DSH 插件运行：尚未验证；本项目发布前已在 Linux / Node.js 22 上独立复测核心单元测试（详细结果见下文）。
-- 看门狗 / 自动恢复：无可靠修复与测试证据，未纳入。
+1. 将本仓库的 `plugins/memory/` 放到稳定的本地目录，作为 `dsh-memory-scoped` 的本地 `link:` / `file:` 插件加载；**不要仅用 npm 同名包替代**。
+2. 在 DSH profile 的 `cordis.patch.yml` 中配置 `privateWorkspace`（非空的绝对路径）、`memoryDir`、`scopedMemory: true`。参考 [根配置示例](examples/config.example.yml) 与 [插件配置示例](plugins/memory/examples/config.example.yml)。
+3. 重新加载插件或重启 DSH，检查诊断文件及私人根会话的 `memory_*` 工具，并确认其他工作区拿不到这套工具。
+4. 如需微信 `/new` **立即**触发，按 [patches/README.md](patches/README.md) 对已安装的 `@xmanrui/dsh-im` 执行可重复应用的本地补丁；插件升级后须重新应用，先备份并测试。
+5. 验证工作区总量、日志和游标；真实记忆首次整理前请备份 `<memoryDir>`。
 
-完整清单见 `STATUS.md`。
+**注意**：如果机器上已经安装过其他版本的记忆插件，**不要让旧包和 `dsh-memory-scoped` 同时写入同一个 `memoryDir`**。升级操作必须先停旧插件、备份数据，再按 [迁移说明](plugins/memory/MIGRATION.md) 处理。
 
-## 安全要点
-
-- 记忆只对 `privateWorkspace` 的**精确路径 + 根会话**开放；子代理默认排除。
-- 管理接口只认 DSH 的 `connection.requestRejection`，缺失即 503。
-- 删除工具在每次删除前重新读取工作区注册表；归属不明一律拒绝。
-- 通知只发文字，`botId`/`targetId` 只读自中央配置，没有入站/回复路径。
-- **已知残留风险**：本地 IM 投递接口本身无认证，任何本机进程知道端口即可直接
-  POST。这是上游插件的行为，本包没有修复，详见 `review/SECURITY_AUDIT.md`。
-
-### 这不是操作系统级隔离（重要）
-
-上面的“工作区隔离”只发生在 **Harness 的模型工具层和提示词层**：
-
-- 它决定哪个会话能看到 `memory_*` 工具、能拿到记忆注入；
-- 它**不改变文件系统权限**。
-
-如果工作区 A/工作区 B 的 Agent 与你登录的是同一个系统用户，并且它拥有任意文件读取
-能力（例如 `read`、`Get-Content`、`pwsh`），它仍然可以直接读取该用户有权访问的
-`<memoryDir>`；同理也能读取通知脚本和本地配置。工具隔离不阻止这种访问。
-
-需要真正的 OS 级隔离时，至少选择一项：
-
-- 用独立的系统账户运行私人工作区的 Host；
-- 用 NTFS ACL / 文件权限把 `<memoryDir>` 限制给专用账户；
-- 在沙箱、虚拟机或容器里运行其他工作区的 Agent；
-- 不把任意文件读取 / shell 工具授予不可信工作区。
-
-**本方案不提供绝对安全隔离**，也不声称能阻止同一系统用户权限下的直接文件访问。
-
-## 快速开始
-
-见 `INSTALL.md`。最短路径：
-
-1. 放好两个插件目录；
-2. profile `package.json` 加 link 依赖与 bundle；
-3. profile `cordis.patch.yml` 写入 `privateWorkspace` 与策略；
-4. 重启 DSH；
-5. 私人工作区根会话验证 `memory_*` 工具；工作区 A、工作区 B 验证看不到；
-6. 打开设置 → “私人工作区记忆”。
-
-## 测试
+## 运行测试
 
 ```powershell
-cd tests; .\run-all.ps1
+cd plugins\memory
+node --test
+node scripts/check-release.mjs
+node scripts/check-release-negative.mjs
+cd ..\..
+node patches/test-patch.mjs
 ```
 
-Windows 原始验收：记忆 152 项（149 通过 / 3 跳过 / 0 失败）、会话删除 14 项通过、验收用例 10 项通过。
-独立 Linux / Node.js 22 复核：记忆 149 通过 / 3 跳过，会话管理 14 通过，验收 9 通过 / 1 项 Windows 专用用例跳过。
-以上**不等于完整 DSH 插件在 Linux 环境中安装或运行成功**。候选包原始 Windows 测试详情见 `review/TEST_RESULTS.md`。
+本次候选包在 Linux / Node.js 22.16.0 上独立复核：**187 项测试，184 通过、3 跳过、0 失败**；MCP 安全测试 **22/22 通过**，补丁安全矩阵通过。会话管理插件沿用 v0.1.0，先前 **14/14 通过**。三项跳过涉及 DSH 宿主 peer 依赖；[完整 Curator harness](plugins/memory/acceptance/README.md) 本轮因依赖缺失**未独立重跑**。详见[测试记录](review/v0.2.0/TEST-REPORT.md)。
 
-## 可选组件（不在 v0.1.0 公开范围内）
+## 安全边界与已知限制
 
-以下组件曾被评估，但**没有**放进首版候选包：
+- **不是操作系统级沙箱**：其他 Agent 若共享系统账户并拥有文件读取权限，仍可能读取 `<memoryDir>`；需要强隔离，请使用独立系统账户、ACL 或沙箱。
+- **独立 MCP 与宿主工具并非完全相同的安全入口**：MCP 写入路径已经加入更严格的内容、标签和合并校验；宿主插件的 `memory_merge`/`memory_delete` 尚未完全同步这些 MCP 防护，不应宣称所有入口已经同等加固。
+- **旧数据读取不自动脱敏**：历史遗留的凭据可能通过搜索/读取出现；不要向记忆库写入密钥，敏感历史数据需要自行清理。
+- **本地 IM 投递接口无自身认证**；通知脚本仅做 loopback、进程归属和路由探测，并不改变上游接口能力。
+- **真实验收尚缺**：微信实际发送 `/new`、真实外部模型 20 轮、完整 Desktop 冷启动、干净环境部署及控制台视觉回归。**不要将本项目用于存放高敏感秘密或宣称生产级安全。**
+- 微信桥接只针对经测试的 `@xmanrui/dsh-im` 安装形态；升级后可能需要重新打补丁。64 个以上待整理会话仍可能 deferred。
 
-| 组件 | 许可证/来源状态 | 结论 |
-| --- | --- | --- |
-| 推理强度滑块 `dsh-codex-effort-slider` | MIT 文本存在，但 `package.json` 没有 repository/author，上游归属未核实 | 暂不收录；补核来源后再考虑 |
-| 公开行情 Skill `okx-cex-market` | `SKILL.md` 声明 MIT、作者 okx，但原目录无独立 LICENSE，移植改动需单独说明 | 暂不收录；作为可选 Skill 单独发布 |
-| `@local/reply-chime`、`schedule-gate`、`skills-panel` | 无 LICENSE（`private: true`） | 不收录 |
-| 微信看门狗 / 自动恢复 | 计划任务已禁用、历史故障、无测试证据 | 不收录 |
+更多信息：[功能状态](STATUS.md) · [架构与信任边界](ARCHITECTURE.md) · [安全审查（v0.1 历史）](review/SECURITY_AUDIT.md)。
 
-## 许可
+## 许可、来源与致谢
 
-组件级许可见 `LICENSE.md`，第三方核查见 `THIRD_PARTY_NOTICES.md`。本包不包含
-DeepSeek Harness 与 `@xmanrui/dsh-im` 的源码。
+本仓库为非官方社区项目，**与 DeepSeek 官方无隶属或背书关系**。原始插件及衍生代码按各自 MIT LICENSE 保留上游版权；原创文档/脚本署名 `miyouchen52-bot`。详情见 [LICENSE.md](LICENSE.md)、[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
 
-## IM 渠道说明
-
-通过第三方 [@xmanrui/dsh-im](https://github.com/xmanrui/dsh-im) 接入即时通讯。**本方案只实际使用和验证过微信**；QQ、飞书、Telegram 等是上游插件所支持的渠道，不能据此认定本仓库的自定义通知和权限方案已在这些平台通过验证。
-
-本项目为非官方社区技术实践，**与 DeepSeek 官方无隶属或背书关系**。
-
-## 致谢
-
-- DeepSeek Harness（MIT, DeepSeek）
-- `dsh-memory` 上游作者（MIT）
-- `dsh-plugin-session-cascade-delete` 作者 liuyu-f / lsz-asd（MIT）
-- `dsh-im` 作者 xmanrui（MIT）
+感谢 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)、[haitang1/dsh-memory](https://github.com/haitang1/dsh-memory)、[liuyu-f/session-cascade-delete](https://github.com/liuyu-f/dsh-plugin-session-cascade-delete) 和 [xmanrui/dsh-im](https://github.com/xmanrui/dsh-im) 的开发者。

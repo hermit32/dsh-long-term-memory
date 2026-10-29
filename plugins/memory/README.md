@@ -1,5 +1,7 @@
 # dsh-memory-scoped — 私人工作区长期记忆插件
 
+> Current release: **0.2.0**
+
 > 本包是 **`dsh-memory` 的受控分支**，不是上游发布包。上游为 `haitang1/dsh-memory`
 > v0.5.0（commit `15de1c7`，MIT）。为公开发布，包名、模块名和默认值已做匿名化处理；
 > 行为逻辑保留真实实现。改动清单见 `FORK-NOTES.md`。
@@ -10,8 +12,8 @@
 
 - 每次提示词注入一份有界的记忆摘要（`systemPrompt.context`，order 2000）。
 - 提供 14 个 `memory_*` 工具，供模型读写记忆。
-- 按会话累计 **有效回合**（真实用户消息 + 助手答复），达到阈值后由后台模型
-  （curator）整理成长期条目。
+- 私人工作区内全部 owned 根会话的未整理 **有效回合** 累计达到阈值后，由后台模型
+  （curator）统一整理；每个会话保留独立 cursor 和来源。
 - 定期做 consolidation，把 raw 条目和 rollout 摘要蒸馏成注入摘要。
 - 记录条目来源（provenance）、curator 运行日志、摘要历史版本，支持回滚。
 - 提供一个需要认证的记忆控制台（DSH 设置 → “私人工作区记忆”）。
@@ -46,7 +48,7 @@
    ```
 
 3. 在 profile 的 `cordis.patch.yml` 里写入策略行（见
-   `../../examples/config.example.yml`）。**必须**设置 `privateWorkspace`；
+   `examples/config.example.yml`）。**必须**设置 `privateWorkspace`；
    留空等于禁用记忆。
 4. 重启 DSH。`<memoryDir>/diagnostics.json` 会记录工具注册、curator 计数和错误。
 
@@ -60,7 +62,7 @@
 | `readOnlyScopes` | `[]` | `['global']` | 只读作用域（例如 `global`）。 |
 | `seedFromAgentsMd` | `true` | `false` | 是否用 `$DSH_HOME/AGENTS.md` 初始化摘要。示例关掉，避免人设进入记忆。 |
 | `autoSummarize` | `true` | `true` | 总开关。关闭后不计数、不整理。 |
-| `curateEveryTurns` | `20` | `20` | **每个会话**累计多少个有效回合触发一次整理。 |
+| `curateEveryTurns` | `20` | `20` | 所有 owned 私人根会话的未整理有效回合**总和**达到此值时触发一次工作区整理；不是单个会话达到 20。 |
 | `curateMaxOps` / `curateMaxAdds` | `8` / `3` | `8` / `3` | 单次整理的操作数 / 新增数上限。 |
 | `curateMaxBytes` | `40000` | `24000` | 一次 curator 输入的字节预算。 |
 | `curateEntriesShown` | `80` | `80` | 提供给 curator 的已有条目数上限。 |
@@ -81,30 +83,29 @@
 
 ## 触发机制（当前实现，已核对代码）
 
-**按会话累计，不是全工作区统一累计。**
+**按工作区统一累计，不是按单个会话累计。**
 
 - `countEffectiveTurn()`（`lib/index.js`）在 `agent/turn-stopping` 时执行，只处理
-  私人工作区的根会话。
+  配置的私人工作区根会话。
 - 每个 session 在 `pending-turns.json` 的 `sessions[sessionId].pendingTurns` 里
-  独立累加；`lifetimeTurns` 只是展示用总数，**不参与触发**。
-- 当 `pendingTurns >= curateEveryTurns` 时，`scheduleCurate()` 为该 session 启动
-  一次 curator；结束后按已处理回合数扣减，并把游标推进到本批最后一条事件。
-- 有效回合的判定：本批事件里至少有一条 `user/message` 且 `source.kind === 'user'`
-  和一条非空 `assistant/message`（`hasHumanExchange`）。schedule、subagent、
-  系统注入都不算。
+  独立保存；工作区总量是 `owned` 会话 `pendingTurns` 的和，`lifetimeTurns` 只展示、
+  **不参与触发**。
+- 总量达到 `curateEveryTurns`（默认 20）时，`runWorkspaceCurator()` 扫描全部
+  pending owned 会话，按最久未整理优先，每批最多 8 个会话，串行执行。
+- 每个会话保留自己的 cursor、transcript、provenance；只有成功/空结果的批次推进
+  游标。失败批次保留 pending；任务期间新产生的回合保留。
+- 一次任务最多串行 8 批（64 个会话）；17 个会话分 3 批完成，剩余进入
+  `deferredSessionIds`，不会静默丢弃。
 
-**“全工作区统一累计”没有实现。** `lifetimeTurns` 只出现在
-`pending-turns.json` 和 curator 状态展示里，没有任何阈值读取它。这是规划功能，
-不是已实现功能。
+**桌面新建和微信 `/new`：**
 
-**新建会话 / 微信 `/new` 的效果**：
-
-- `agent/created` 且是私人根会话时，60 秒后跑一次 `flushOrphans('new-session')`。
-- 该兜底只整理“不在 `ctx.sessions.list()` 活跃集合里、且最后活动超过
-  `orphanGraceMs`”的会话；它 **不会** 整理正在新建的这个会话（此时它还没有
-  待整理回合），也不会强制整理其他仍然活跃的会话。
-- 微信 `/new` 是否映射到同一个 `agent/created` 事件，属于 `@xmanrui/dsh-im` 的
-  行为，**本次未验证**；桌面端新建会话走的是同一事件。
+- 桌面新会话：`agent/created` 且 `source === 'startup'`、私人根会话；`resume`
+  （打开已有/启动恢复）、子代理、其他工作区不触发。
+- 微信 `/new`：dsh-im 本地补丁在清除绑定后发出 `dsh-im/new-session` process 事件；
+  记忆插件校验 workspace/上一会话 header 后触发。未安装补丁时，最迟在下一条消息
+  创建新会话时由 `startup` 触发。
+- 孤儿兜底仍保留：启动 30 秒后、新建私人会话 60 秒后，只处理非活跃且超过
+  `orphanGraceMs` 的会话。
 
 ## 后台 curator
 
@@ -170,12 +171,39 @@
 ## 凭据检测与安全限制
 
 - `detectSecrets()` 识别常见 API key / token / 私钥 / 连接串形态。
-- `memory_add` / `memory_update` 命中即拒绝；**没有** `allowSecret` 之类的绕过参数。
+- `memory_add` / `memory_update` / `memory_merge` 命中即拒绝；**没有** `allowSecret` 之类的绕过参数。
 - curator 的每条 content 也过同一检测，命中即拒绝整批。
 - `redactSecrets` 在注入前再脱敏一次。
 - 管理接口全部要求 DSH 的 `connection.requestRejection`（Host/Origin + 签名会话
   cookie）；`connection` 缺失时 **fail closed 返回 503**，没有 loopback 降级。
 - 控制台请求体只能指定 action 和记忆字段，不能指定工作区、scope、目录或文件路径。
+
+> **安全范围说明（v0.2.0）**：以下独立 MCP 服务已接受额外的内容、标签、合并计划与删除 journal 脱敏回归测试。Cordis 宿主工具 `memory_merge` / `memory_delete` 尚未完全同步这些附加防护，不能将 MCP 的安全结果视为所有入口一致。
+
+### 独立 MCP server（`bin/dsh-memory-mcp.mjs`）
+
+- 写入路径 `memory_add` / `memory_update` / `memory_merge` 始终检测凭据，命中即拒绝；
+  content 和 `normalizeTags()` 之后的**最终 tags** 都会扫描，没有 `allowSecret` 参数，
+  也没有环境变量可以关闭扫描（`DSH_MEMORY_REDACT=0` 不影响写入行为）。
+- `memory_update` 校验“写入后的最终状态”（content + tags），因此历史遗留的含凭据条目
+  不能通过只改 importance/tags 继续保留；需先删除或整条改写。
+- `memory_merge` 的唯一合并计划由 `lib/store.js` 的 `planMergeEntries()` 生成，MCP 与
+  `MemoryStore` 不再各自实现“最长内容 / 标签并集 / 16 项上限 / 顺序”规则；所有参与
+  条目（content 与 tags）都在落盘前检查，拒绝重复 ID、缺失 ID 和非法 `keepId`，
+  校验的就是即将写入的对象，失败时 raw 与 journal 都不变。
+- `memory_delete` 对历史含凭据条目只把元数据写入 journal，content/tags 用占位符替换，
+  避免删除动作把凭据复制到另一个持久化文件。
+- 错误信息不回显用户原文：超长 tag 只报长度上限，未知 scope/tool、缺失条目也不再
+  回显输入值。
+- 作用域默认拒绝：`workspace` / `project` 只接受 `DSH_MEMORY_ALLOWED_ROOTS` 内的
+  路径（`path.delimiter` 分隔的绝对路径，Windows 用 `;`），每个配置的根目录对应
+  一个 `ws-` 作用域，子目录不会派生出新作用域；`global` 需要显式设置
+  `DSH_MEMORY_ALLOW_GLOBAL=1`。客户端传入的 `cwd` 不会被当成任意作用域。
+- 未知 `scope` 值直接报错，不会静默回退到 `global`。
+- 客户端配置示例见 `examples/mcp-config.json`（只设置 `DSH_MEMORY_DIR` 与
+  `DSH_MEMORY_ALLOWED_ROOTS`；该示例不启用 `global`）。
+- 回归测试 `test/mcp.security.test.js` 由 `scripts/check-release.mjs` 单独运行并
+  断言；任一项失败都会让发布检查以非零退出。
 
 ## 记忆控制台
 
@@ -206,18 +234,23 @@
 ## 测试
 
 ```bash
-cd plugins/memory
+cd dsh-memory-scoped
 node --test
 ```
 
-本包实测：**152 项，149 通过，3 跳过，0 失败**（跳过项需要外部 embeddings 服务 /
+The test suite runs 187 tests: 184 pass, 3 skip, 0 fail. 本包实测：**187 项，184 通过，3 跳过，0 失败**（跳过项需要外部 embeddings 服务 /
 MCP 运行时）。测试是纯 Node，不需要 DSH 宿主。
+
+额外可复现集成 harness：`node acceptance/curator-harness.mjs all`（需要 DSH peer packages；
+只用临时目录和合成事件，见 `acceptance/README.md`）。
 
 ## 已知限制（不要当成已实现）
 
-1. 全工作区统一累计回合：**未实现**（见上）。
-2. 微信 `/new` 触发整理：**未验证**；桌面新建会话只触发 60 秒后的兜底扫描。
-3. 兜底整理只处理“非活跃且超时”的会话；活跃会话仍按各自 20 回合阈值触发。
-4. 宿主接线（`apply()` / 工具注册 / 注入）没有端到端自动化测试，只有
-   `test/host-wiring.test.js` 的结构性断言；真实部署仍需手工验收。
-5. 控制台 UI 的可视化验证依赖人工点击；本包只覆盖 host 侧 HTTP 行为。
+1. 真实微信 `/new`：process 监听器和 dsh-im 补丁已测试，但真实微信发送仍需用户手动验收。
+2. 真实外部模型 20 轮：集成 harness 使用确定性 LLM stream，不证明外部模型输出质量。
+3. 完整 Desktop 重启：未执行；热重载不等同冷启动，见 `RESTART-CHECKLIST.md`。
+4. 后台自动创建的新鲜私人根会话仍无法与用户主动新建在 `agent/created` 层完全区分。
+5. 超过 64 个待整理会话仍会留 deferred；需要下一次触发/手动整理。
+6. 宿主接线（`apply()` / 工具注册 / 注入）没有端到端自动化测试，只有 `test/host-wiring.test.js` 的结构性断言；真实部署仍需手工验收。
+7. 控制台 UI 的可视化验证依赖人工点击；本包只覆盖 host 侧 HTTP 行为。
+

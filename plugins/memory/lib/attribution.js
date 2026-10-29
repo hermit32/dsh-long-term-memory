@@ -57,13 +57,13 @@ const WRITE_COMMAND = /(\bset-content\b|\badd-content\b|\bout-file\b|\bnew-item\
 
 const SHARED_EXPERIENCE_PATTERNS = [
   /(一起|共同|一同|一块儿?).{0,24}(做|整理|完成|看|读|写|改|弄|搞|选|买|去|玩|学|讨论|研究|检查|处理|搭建|配置|调试|测试|安装|准备)/,
-  /(我|助手).{0,16}(帮|替|陪|和|与|跟).{0,16}主人.{0,24}(做|整理|完成|看|读|写|改|弄|搞|查|处理|搭建|配置|调试|测试|安装|准备)/,
-  /主人.{0,16}(和|与|跟|让|叫|请|找).{0,16}(我|助手).{0,24}(做|整理|完成|看|读|写|改|弄|搞|查|处理|搭建|配置|调试|测试|安装|准备)/,
-  /(上次|之前|曾经|那天|当时|刚刚|刚才).{0,24}(一起|共同|陪主人|帮主人|和主人|与主人)/,
+  /(我|助手).{0,16}(帮|替|陪|和|与|跟).{0,16}用户.{0,24}(做|整理|完成|看|读|写|改|弄|搞|查|处理|搭建|配置|调试|测试|安装|准备)/,
+  /用户.{0,16}(和|与|跟|让|叫|请|找).{0,16}(我|助手).{0,24}(做|整理|完成|看|读|写|改|弄|搞|查|处理|搭建|配置|调试|测试|安装|准备)/,
+  /(上次|之前|曾经|那天|当时|刚刚|刚才).{0,24}(一起|共同|陪用户|帮用户|和用户|与用户)/,
   /(我们|咱).{0,24}(做过|整理过|弄过|看过|写过|改过|一起)/
 ]
 
-const PERSONAL_FACT_PATTERN = /(主人|用户).{0,20}(喜欢|偏好|习惯|讨厌|不喜欢|生日|名字|住在|工作|职业|年龄|家人|朋友|电话|地址|邮箱|常用|总是|从来不|希望|要求)/
+const PERSONAL_FACT_PATTERN = /(用户|用户).{0,20}(喜欢|偏好|习惯|讨厌|不喜欢|生日|名字|住在|工作|职业|年龄|家人|朋友|电话|地址|邮箱|常用|总是|从来不|希望|要求)/
 
 /**
  * Normalize punctuation and width so a quote and a paraphrase compare sanely.
@@ -249,11 +249,11 @@ export function attributeOperation(operation, context = {}) {
     return { ok: false, reason: '只有助手自己的说法，不能单独作为长期记忆来源' }
   }
   if (personal && sourceType !== 'user_statement') {
-    return { ok: false, reason: '关于主人的个人事实必须来自主人的明确陈述' }
+    return { ok: false, reason: '关于用户的个人事实必须来自用户的明确陈述' }
   }
   if (shared) {
     if (sourceType !== 'user_statement' && sourceType !== 'session_task') {
-      return { ok: false, reason: '只有文件/工具资料，不能证明主人和助手共同做过什么' }
+      return { ok: false, reason: '只有文件/工具资料，不能证明用户和助手共同做过什么' }
     }
     if (sourceType === 'session_task' && context.hasHumanExchange !== true) {
       return { ok: false, reason: '会话中没有真实的人类交互，不能作为共同经历' }

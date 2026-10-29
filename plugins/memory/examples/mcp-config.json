@@ -5,7 +5,7 @@
       "args": ["<ABSOLUTE_PATH_TO_PLUGIN>/bin/dsh-memory-mcp.mjs"],
       "env": {
         "DSH_MEMORY_DIR": "<ABSOLUTE_PATH_TO_MEMORY_DIR>",
-        "DSH_MEMORY_REDACT": "1"
+        "DSH_MEMORY_ALLOWED_ROOTS": "<ABSOLUTE_PATH_TO_PRIVATE_WORKSPACE>"
       }
     }
   }

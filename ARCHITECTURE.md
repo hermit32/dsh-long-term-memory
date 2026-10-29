@@ -58,29 +58,31 @@ lib/volatile.js     DSH settings 的 volatile/secret 兼容层
 bin/dsh-memory-mcp.mjs 独立 stdio MCP server（9 个工具）
 ```
 
-### 一次自动整理的时序
+### v0.2.0 自动整理与记忆注入时序
 
 ```text
-agent/turn-stopping
-  └─ countEffectiveTurn(agent)
-       ├ 非私人根会话 → 返回
-       ├ 读 pending-turns.json（按 scope）
-       ├ 有新事件 + hasHumanExchange → pendingTurns += 1, lifetimeTurns += 1
-       └ pendingTurns >= curateEveryTurns
-            └─ scheduleCurate(sessionId, 'threshold')
-                 └─ setTimeout(0) → runCurator()
-                      ├ 取本会话游标之后的原始事件
-                      ├ 构造 transcript（有界）+ 当前摘要 + 候选条目
-                      ├ llm.text(...)  （后台模型，reasoningEffort=off）
-                      ├ validateCuratorOperations（禁 delete/限条数/查凭据）
-                      ├ attributeCuratorOperations（对回原文，丢弃无依据条目）
-                      ├ 应用 add/update/merge + 写 provenance
-                      ├ advancePendingAfterCuration（推进游标、扣减 pending）
-                      └ 有写入 → requestConsolidation → 刷新注入摘要
+私人工作区根会话 A / B / C 的 agent/turn-stopping
+  └─ countEffectiveTurn（各自保存 pendingTurns 和 cursor）
+      └─ workspacePendingTotal = Σ owned 根会话 pendingTurns
+          ├ 合计未达到 curateEveryTurns（默认 20）→ 持续累计
+          └ 达到阈值 → scheduleWorkspaceCuration(scopeKey, 'threshold')
+              └─ runWorkspaceCurator（工作区任务锁）
+                  ├ 扫描 owned、未遗忘且 pending > 0 的会话
+                  ├ 按最久未处理排序；8 会话/批，最多 8 批
+                  ├ 每会话独立 cursor → transcript → LLM curator
+                  ├ 校验操作 + 基于 transcript lines 的 attribution
+                  ├ 应用记忆、写入 provenance、journal
+                  ├ 成功/空结果：只推进本会话 cursor、扣本次回合
+                  ├ 失败：保留 pending；处理中新增回合保留
+                  └ 有写入 → consolidation → 后续提示词注入摘要
 ```
 
-并发控制：同一 session 一个 curator；所有 store 写入经 `withLock` 串行；跨进程
-`.memory.lock`。
+- **桌面新建**：`agent/created`、`source=startup`、私人根会话时触发同一整理入口，`resume` 不触发。
+- **微信 `/new`**：可选 [`patches/`](patches/README.md) 为 dsh-im 提供 `dsh-im/new-session` 进程事件；监听器复核工作区和前一会话后触发。
+- **孤儿兜底**：保留非活跃会话定时整理。跨会话批次中每个来源 session 仍有独立游标及 provenance。
+- **局限**：模拟事件通过，但真实微信 `/new`、完整 DSH 冷启动及真实外部模型多会话整理尚未全部验收。
+
+**独立 MCP 的安全边界：** `bin/dsh-memory-mcp.mjs` 使用 `DSH_MEMORY_ALLOWED_ROOTS` 白名单限制 scope，写入前拒绝内容与 tags 的凭据；`memory_merge` 使用存储层唯一 `planMergeEntries()` 计划。该附加入口与 Cordis 宿主 `memory_merge`/`memory_delete` 的安全措施尚未完全一致，不可把 MCP 的专项加固结论直接外推到全部宿主工具。
 
 ### 作用域键
 

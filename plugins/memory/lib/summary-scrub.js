@@ -10,7 +10,7 @@
 // distilled summary.
 //
 // Exact matching is deliberate. The old fuzzy matcher could delete a different
-// but similar fact ("主人喜欢蓝色。" vs "主人喜欢猫。") when one entry changed.
+// but similar fact ("用户喜欢蓝色。" vs "用户喜欢猫。") when one entry changed.
 // A summary line that cannot be identified exactly is left alone; the next
 // consolidation may rewrite it, but a local mutation never widens the blast
 // radius. This is the conservative trade-off required for private memory.

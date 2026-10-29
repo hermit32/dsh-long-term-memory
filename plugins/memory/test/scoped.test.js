@@ -105,7 +105,7 @@ test('curator validation allows add/update/merge/no-op and caps adds', () => {
   assert.deepEqual(validateCuratorOperations([], base), { ok: true, operations: [] })
   assert.equal(validateCuratorOperations([{ op: 'noop' }], base).operations.length, 0)
   assert.equal(validateCuratorOperations([
-    { op: 'add', content: '主人喜欢简洁中文', tags: ['Preference'], importance: 2 }
+    { op: 'add', content: '用户喜欢简洁中文', tags: ['Preference'], importance: 2 }
   ], base).operations[0].tags[0], 'preference')
   assert.equal(validateCuratorOperations([
     { op: 'add', content: 'a' }, { op: 'add', content: 'b' }, { op: 'add', content: 'c' }, { op: 'add', content: 'd' }
