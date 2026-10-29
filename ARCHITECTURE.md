@@ -36,6 +36,32 @@
 | 本项目插件 | `dsh-memory-scoped`、`session-cascade-delete`（修改版） | 记忆策略、curator、控制台、按工作区隔离的会话删除 | 不重写 DSH 存储、不修改 DSH 核心 |
 | 本地脚本 | `notify.ps1` + `lib/dsh-host.ps1` | 发现 Host、校验进程归属、去重、排队、补发 | 不接收消息、不改变绑定、不执行主工作区操作 |
 
+## 长期记忆的数据流：提取与整合是两步
+
+本项目不是对每个会话进行一次静态压缩，而是将对话中的**可持续使用的信息**抽取为持久条目，再生成供后续提示词使用的摘要：
+
+```text
+user/assistant 对话事件
+    ↓  agent/turn-stopping：每个私人根会话按事件序号累计 pending
+工作区总 pending ≥ curateEveryTurns（默认 20）
+    ↓  也可由新建私人根会话、微信 /new 补丁事件、孤儿兜底触发
+runWorkspaceCurator()：按最久未整理顺序选择 owned 会话
+    ↓  每个会话单独获取 cursor 之后的 transcript
+runCurator() → LLM 的 add/update/merge/no-op 提案
+    ↓  validateCuratorOperations() → attributeCuratorOperations()
+MemoryStore：raw_memories.md / journal.jsonl / provenance.json
+    ↓  成功后推进该会话 cursor；失败保留 pending
+Consolidation → memory_summary.md（有界摘要）
+    ↓  下一次生成 prompt 时重新读取并注入
+新的私人工作区会话使用已保存记忆
+```
+
+- **Curator = 提取与更新。** 分析未处理的对话，提出记忆操作，验证事实来源，不把无根据的推测写入长期记忆。
+- **Consolidation = 整合与摘要。** 有有效写入时，整理已有条目为可注入提示词的摘要；不需要把所有历史原文重新传给新会话。
+- **工作区任务 ≠ 单一混合会话。** A=8、B=6、C=6 共 20 个有效回合触发一次工作区任务，但每个会话有自己的 transcript、cursor 和 provenance。
+- **失败与空结果。** 失败批次不扣 pending；有效 no-op 可以推进已检查的游标而不生成新记忆；运行中产生的新回合留待下一次处理。
+- **范围和验证。** 当前默认最多 8 批 × 8 会话。模拟模型隔离 harness 有通过证据，真实外部模型/微信 `/new`/Desktop 冷启动仍待端到端验收。见 [STATUS.md](STATUS.md)。
+
 ## 记忆插件内部
 
 ```text
