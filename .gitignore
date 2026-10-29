@@ -1,0 +1,99 @@
+# ---------------------------------------------------------------------------
+# DSH private-workspace framework - public release candidate
+#
+# Never commit real configuration, credentials, memory data, sessions, logs,
+# queues or backups. The `.example.*` files are the only configuration files
+# that belong in a repository.
+# ---------------------------------------------------------------------------
+
+# --- secrets / local configuration -----------------------------------------
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.pfx
+*.p12
+*.jks
+credentials*
+*credentials*
+.credentials.yaml
+notify-config.json
+workspace-labels.json
+*.local.json
+*.local.yml
+*.local.yaml
+
+# --- long-term memory data --------------------------------------------------
+memories/
+memories-*/
+**/memories/
+**/memories-*/
+**/raw_memories.md
+**/memory_summary.md
+**/journal.jsonl
+**/summary_history/
+**/rollout_summaries/
+**/provenance.json
+**/curator-log.json
+**/pending-turns.json
+**/diagnostics.json
+**/.memory.lock
+**/archive/
+
+# --- sessions, logs, queues -------------------------------------------------
+sessions/
+**/sessions/
+logs/
+**/logs/
+*.log
+*.log.*
+.dsh-notify/
+**/.dsh-notify/
+notify-queue*.jsonl
+notify-state.json
+notify-queue.dropped.jsonl
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+
+# --- backups / exports ------------------------------------------------------
+backup/
+backups/
+*.bak
+*.bak-*
+*.orig
+*.zip
+*.7z
+*.tar
+*.tar.gz
+*.tgz
+*.dump
+*.sql
+
+# --- temporary files --------------------------------------------------------
+*.tmp
+*.tmp-*
+*.temp
+~$*
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- dependencies / build output -------------------------------------------
+node_modules/
+.pnpm-store/
+.pnpm/
+dist/
+build/
+coverage/
+.next/
+out/
+*.tsbuildinfo
+
+# --- editor / OS metadata ---------------------------------------------------
+.vscode/
+.idea/
+*.code-workspace

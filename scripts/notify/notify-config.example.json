@@ -1,0 +1,14 @@
+{
+  "version": 2,
+  "appExe": "<ABSOLUTE_PATH_TO_HARNESS_EXE>",
+  "endpointPath": "/api/dsh-im/delivery/messages",
+  "gatePath": "/schedule-gate/state",
+  "endpoint": null,
+  "botId": "<IM_BOT_ID>",
+  "targetId": "<IM_TARGET_ID>",
+  "requestTimeoutSec": 10,
+  "lockWaitSec": 60,
+  "maxQueueItems": 200,
+  "maxQueueAgeDays": 7,
+  "maxAttempts": 12
+}

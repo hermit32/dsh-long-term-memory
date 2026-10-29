@@ -1,0 +1,59 @@
+# config.example.yml — profile patch fragment (EXAMPLE)
+#
+# This is a *fragment* of the profile patch layer, not a complete Cordis
+# composition. Merge the rows you need into <DSH_HOME>/profiles/<profile>/cordis.patch.yml.
+# Replace every <PLACEHOLDER> and every example path before use.
+#
+# YAML note: single-quoted strings keep backslashes literal on Windows.
+
+# --- memory plugin: mount the bundle row -----------------------------------
+# The row id becomes the plugin's settings namespace. Keep it equal to the
+# package name so the client bundle and the settings form agree.
+- insert:
+    - id: dsh-memory-scoped
+      name: dsh-memory-scoped
+
+# --- memory plugin: the row that owns the policy ---------------------------
+# `privateWorkspace` is a security boundary: it must be the exact absolute path
+# of the one workspace allowed to use memory. Leave it empty to disable memory.
+- id: dsh-memory-scoped
+  config:
+    privateWorkspace: 'C:\Workspaces\private'
+    memoryDir: 'C:\Workspaces\private\.dsh\memories-scoped'
+    scopedMemory: true
+    readOnlyScopes:
+      - global
+    seedFromAgentsMd: false
+    autoSummarize: true
+    # Per-session effective-turn threshold. 20 means "this session", not
+    # "the whole workspace".
+    curateEveryTurns: 20
+    curateMaxOps: 8
+    curateMaxAdds: 3
+    curateMaxBytes: 24000
+    curateEntriesShown: 80
+    curateMaxTokens: 2000
+    orphanGraceMs: 300000
+    flushOrphansOnStart: true
+    flushOrphansOnNewSession: true
+    captureSubagents: false
+    maxBytes: 3000
+    scopeMaxBytes: 1200
+    injectTokens: 1200
+    consolidateEvery: 5
+    consolidateMaxBytes: 12000
+    consolidateMaxTokens: 4096
+    maxActiveSummaries: 1
+    redactSecrets: true
+
+# --- session manager: mount the delete plugin bundle row -------------------
+- insert:
+    - id: session-delete
+      name: "@liuyu-f/dsh-plugin-session-cascade-delete"
+
+# --- session manager: policy ----------------------------------------------
+# deleteSubagents defaults to true. Set it to false if a delete should never
+# cascade into the subagent sessions a session owns.
+- id: session-delete
+  config:
+    deleteSubagents: true

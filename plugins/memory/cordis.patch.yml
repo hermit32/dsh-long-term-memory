@@ -1,0 +1,5 @@
+# dsh-memory-scoped bundle patch: mounts the controlled fork into a profile layer stack.
+# The profile patch row (same id) owns the private workspace and curation policy.
+- insert:
+    - id: dsh-memory-scoped
+      name: dsh-memory-scoped
