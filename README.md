@@ -4,9 +4,9 @@
 >
 > **Technical Preview / 非官方项目 / 非一键部署**。插件代码和自动化测试已公开；真实微信 `/new`、真实外部模型累计 20 轮以及桌面冷启动的端到端验收尚未完成。请先阅读[状态与限制](STATUS.md)和[安装说明](INSTALL.md)。
 
-![项目整体架构图](./DeepSeek%20私人%20AI%20工作区架构图.png)
+![DeepSeek Harness 长期记忆工作流：跨会话累计、Curator 提取、Consolidation 整合及新会话注入](docs/long-term-memory-flow.svg)
 
-*架构图展示整个私人 AI 工作区方案。**本项目的核心是长期记忆**；会话管理、微信桥接和单向通知是支持性组件。图中内容以当前源码及 [STATUS.md](STATUS.md) 为准。*
+*长期记忆主流程：多个私人会话累计有效回合 → Curator 提取并校验 → 持久化记忆 → Consolidation 整合摘要 → 后续会话自动使用。图示为 v0.2.0 设计与测试覆盖范围，真实外部模型及微信端到端验收仍待完成。早期的[私人 AI 工作区整体架构图](docs/legacy/DeepSeek%20私人%20AI%20工作区架构图.png)已归档。*
 
 ## 为什么做这个项目？
 

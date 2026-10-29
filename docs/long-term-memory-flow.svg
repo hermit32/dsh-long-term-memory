@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1190" viewBox="0 0 1200 1190" role="img" aria-labelledby="diagram-title diagram-desc">
+<title id="diagram-title">DeepSeek Harness 长期记忆工作流</title>
+<desc id="diagram-desc">私人会话 A 八轮、B 六轮、C 六轮，累计二十轮触发 Curator 提取记忆；来源验证后写入持久化记忆，经 Consolidation 生成有界摘要，并在后续会话注入。各会话独立维护游标。</desc>
+<defs>
+<linearGradient id="bg" x1="0" x2="1" y1="0" y2="1"><stop offset="0%" stop-color="#F8FBFF"/><stop offset="100%" stop-color="#EEF5FC"/></linearGradient>
+<marker id="arrow" markerWidth="9" markerHeight="9" refX="6.5" refY="4.5" orient="auto"><path d="M1 1 L7 4.5 L1 8" fill="none" stroke="#96A9C2" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></marker>
+</defs>
+<rect width="1200" height="1190" fill="url(#bg)"/>
+<g font-family="Inter, 'Noto Sans CJK SC', 'Microsoft YaHei', 'PingFang SC', sans-serif">
+<text x="72" y="59" font-size="16" font-weight="800" fill="#5479B5" letter-spacing="2">DEEPSEEK HARNESS  /  LONG-TERM MEMORY</text>
+<text x="72" y="111" font-size="42" font-weight="750" fill="#112844" >从日常对话到长期记忆</text>
+<text x="73" y="147" font-size="20" font-weight="400" fill="#5F7188" >自动提取 → 来源校验 → 持久保存 → 摘要整合 → 新会话使用</text>
+<rect x="70" y="172" width="320" height="102" rx="19" fill="#FFF" stroke="#DBE5F1" stroke-width="1.4"/>
+<circle cx="98" cy="201" r="7" fill="#638BDE"/>
+<text x="117" y="211" font-size="21" font-weight="700" fill="#162D4C" >会话 A</text>
+<rect x="292" y="186" width="78" height="31" rx="16" fill="#EAF2FE" stroke="none" stroke-width="1.4"/>
+<text x="331" y="208" font-size="15" font-weight="700" fill="#326BCE" text-anchor="middle">8 轮</text>
+<text x="98" y="247" font-size="16" font-weight="400" fill="#66778C" >未整理回合 · 独立游标</text><rect x="440" y="172" width="320" height="102" rx="19" fill="#FFF" stroke="#DBE5F1" stroke-width="1.4"/>
+<circle cx="468" cy="201" r="7" fill="#638BDE"/>
+<text x="487" y="211" font-size="21" font-weight="700" fill="#162D4C" >会话 B</text>
+<rect x="662" y="186" width="78" height="31" rx="16" fill="#EAF2FE" stroke="none" stroke-width="1.4"/>
+<text x="701" y="208" font-size="15" font-weight="700" fill="#326BCE" text-anchor="middle">6 轮</text>
+<text x="468" y="247" font-size="16" font-weight="400" fill="#66778C" >未整理回合 · 独立游标</text><rect x="810" y="172" width="320" height="102" rx="19" fill="#FFF" stroke="#DBE5F1" stroke-width="1.4"/>
+<circle cx="838" cy="201" r="7" fill="#638BDE"/>
+<text x="857" y="211" font-size="21" font-weight="700" fill="#162D4C" >会话 C</text>
+<rect x="1032" y="186" width="78" height="31" rx="16" fill="#EAF2FE" stroke="none" stroke-width="1.4"/>
+<text x="1071" y="208" font-size="15" font-weight="700" fill="#326BCE" text-anchor="middle">6 轮</text>
+<text x="838" y="247" font-size="16" font-weight="400" fill="#66778C" >未整理回合 · 独立游标</text>
+<g stroke="#9BAFC9" stroke-width="2.4" fill="none" stroke-linecap="round"><path d="M230 274 V300 H600"/><path d="M600 274 V300"/><path d="M970 274 V300 H600"/></g>
+<path d="M600 300 V 322" stroke="#9AAEC8" stroke-width="2.6" fill="none" marker-end="url(#arrow)"/>
+<rect x="193" y="328" width="814" height="96" rx="21" fill="#F0F6FF" stroke="#DBE4F1" stroke-width="1.4"/>
+<rect x="193" y="328" width="8" height="96" rx="4" fill="#356BC4"/>
+<text x="230" y="356" font-size="17" font-weight="750" fill="#356BC4" >01  ·  工作区统一计数</text>
+<text x="230" y="386" font-size="22" font-weight="650" fill="#10253D" >8 + 6 + 6 = 20 轮，触发一次后台整理</text>
+<text x="230" y="409" font-size="15" font-weight="400" fill="#5D6B7D" >只统计同一私人工作区的 owned 根会话；新建会话亦可触发</text>
+<path d="M600 425 V 470" stroke="#9AAEC8" stroke-width="2.6" fill="none" marker-end="url(#arrow)"/>
+<rect x="193" y="474" width="814" height="96" rx="21" fill="#F5F2FF" stroke="#DBE4F1" stroke-width="1.4"/>
+<rect x="193" y="474" width="8" height="96" rx="4" fill="#6B51C7"/>
+<text x="230" y="502" font-size="17" font-weight="750" fill="#6B51C7" >02  ·  Curator · 提取与更新</text>
+<text x="230" y="532" font-size="22" font-weight="650" fill="#10253D" >逐会话读取未处理对话，识别值得长期保留的信息</text>
+<text x="230" y="555" font-size="15" font-weight="400" fill="#5D6B7D" >可提出 add / update / merge / no-op；不机械压缩全文</text>
+<path d="M600 571 V 616" stroke="#9AAEC8" stroke-width="2.6" fill="none" marker-end="url(#arrow)"/>
+<rect x="193" y="620" width="814" height="96" rx="21" fill="#FFF8EC" stroke="#DBE4F1" stroke-width="1.4"/>
+<rect x="193" y="620" width="8" height="96" rx="4" fill="#B37B2F"/>
+<text x="230" y="648" font-size="17" font-weight="750" fill="#B37B2F" >03  ·  依据校验与来源归属</text>
+<text x="230" y="678" font-size="22" font-weight="650" fill="#10253D" >核查格式、凭据及对话证据，过滤缺乏依据的提案</text>
+<text x="230" y="701" font-size="15" font-weight="400" fill="#5D6B7D" >保留会话 ID 与事件位置；成功或有效空结果才推进各自游标</text>
+<path d="M600 717 V 762" stroke="#9AAEC8" stroke-width="2.6" fill="none" marker-end="url(#arrow)"/>
+<rect x="193" y="766" width="814" height="96" rx="21" fill="#F0FCF9" stroke="#DBE4F1" stroke-width="1.4"/>
+<rect x="193" y="766" width="8" height="96" rx="4" fill="#168A83"/>
+<text x="230" y="794" font-size="17" font-weight="750" fill="#168A83" >04  ·  持久化长期记忆</text>
+<text x="230" y="824" font-size="22" font-weight="650" fill="#10253D" >保存结构化条目，而不是依赖旧聊天上下文</text>
+<text x="230" y="847" font-size="15" font-weight="400" fill="#5D6B7D" >raw memories · journal · provenance；支持搜索、编辑和回滚</text>
+<path d="M600 863 V 907" stroke="#9AAEC8" stroke-width="2.6" fill="none" marker-end="url(#arrow)"/>
+<rect x="193" y="911" width="814" height="96" rx="21" fill="#EDFBF6" stroke="#DBE4F1" stroke-width="1.4"/>
+<rect x="193" y="911" width="8" height="96" rx="4" fill="#147C70"/>
+<text x="230" y="939" font-size="17" font-weight="750" fill="#147C70" >05  ·  Consolidation · 整合摘要</text>
+<text x="230" y="969" font-size="22" font-weight="650" fill="#10253D" >将已保存的记忆整理为有长度限制的摘要</text>
+<text x="230" y="992" font-size="15" font-weight="400" fill="#5D6B7D" >与 Curator 分工：决定保留什么 → 整理以后展示什么</text>
+<path d="M600 1008 V 1051" stroke="#9AAEC8" stroke-width="2.6" fill="none" marker-end="url(#arrow)"/>
+<rect x="193" y="1055" width="814" height="96" rx="21" fill="#EEF5FF" stroke="#DBE4F1" stroke-width="1.4"/>
+<rect x="193" y="1055" width="8" height="96" rx="4" fill="#326AC9"/>
+<text x="230" y="1083" font-size="17" font-weight="750" fill="#326AC9" >06  ·  自动注入新会话</text>
+<text x="230" y="1113" font-size="22" font-weight="650" fill="#10253D" >模型在后续对话中利用持久化记忆摘要</text>
+<text x="230" y="1136" font-size="15" font-weight="400" fill="#5D6B7D" >不必重放完整历史会话；用户仍可在控制台管理记忆</text>
+<text x="600" y="1173" font-size="14" font-weight="400" fill="#75859A" text-anchor="middle">技术预览：真实外部模型 20 轮、微信 /new 及完整桌面冷启动仍待端到端验收</text>
+</g>
+</svg>
