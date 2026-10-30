@@ -63,6 +63,5 @@
 <text x="230" y="1083" font-size="17" font-weight="750" fill="#326AC9" >06  ·  自动注入新会话</text>
 <text x="230" y="1113" font-size="22" font-weight="650" fill="#10253D" >模型在后续对话中利用持久化记忆摘要</text>
 <text x="230" y="1136" font-size="15" font-weight="400" fill="#5D6B7D" >不必重放完整历史会话；用户仍可在控制台管理记忆</text>
-<text x="600" y="1173" font-size="14" font-weight="400" fill="#75859A" text-anchor="middle">技术预览：真实外部模型 20 轮、微信 /new 及完整桌面冷启动仍待端到端验收</text>
 </g>
 </svg>
