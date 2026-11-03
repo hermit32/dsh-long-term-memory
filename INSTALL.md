@@ -1,4 +1,4 @@
-# INSTALL.md — 长期记忆解决方案的部署与升级（v0.2.0）
+# INSTALL.md — 长期记忆解决方案的部署与升级（v0.2.1）
 
 > **状态：安装步骤未在干净机器上完整验证。** 本文的每一步都对应本机实际运行状态，
 > 但“从零开始照做一遍”没有做过。请按 `review/REPRODUCTION_AUDIT.md` 的清单逐项
@@ -12,7 +12,7 @@
 | Host 协议版本 | 4（`desktop-runtime.json`） |
 | 捆绑 Node / pnpm | 24.21.0 / 11.28.5 |
 | 本包测试用 Node | 24.22.1 |
-| 记忆插件 | `dsh-memory-scoped` 0.2.0（上游 fork） |
+| 记忆插件 | `dsh-memory-scoped` 0.2.1（上游 fork） |
 | 会话删除插件 | `@liuyu-f/dsh-plugin-session-cascade-delete` 1.0.6-local.1（上游 1.0.6 修改版） |
 | IM 插件 | `@xmanrui/dsh-im` 5.6.0 |
 
@@ -214,7 +214,7 @@ cd tests;                        .\run-all.ps1
 验收套件里的 Windows 路径作用域用例只在 Windows 上执行；其他平台会跳过并改跑
 可移植路径用例（原因见 `review/TEST_RESULTS.md`）。
 
-**平台状态**：最新记忆包在 Linux / Node 22.16.0 独立复测为 187 项（184 通过、3 跳过）；历史 Windows / Node 24 测试见 [`review/v0.2.0/TEST-REPORT.md`](review/v0.2.0/TEST-REPORT.md)。**并不等于 Linux/macOS DSH Desktop 集成可用，也不等于干净环境已复现。**
+**平台状态**：本次维护在 Windows / Node 24.22.1 上复核为 192 项（189 通过、3 跳过）；v0.2.0 候选包曾在 Linux / Node 22.16.0 独立复测为 187 项，历史记录见 [`review/v0.2.0/TEST-REPORT.md`](review/v0.2.0/TEST-REPORT.md)。**并不等于 Linux/macOS DSH Desktop 集成可用，也不等于干净环境已复现。**
 
 ## 14. 卸载 / 安全回滚
 

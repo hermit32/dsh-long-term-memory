@@ -1,4 +1,4 @@
-# ROADMAP — dsh-memory-scoped 0.2.0
+# ROADMAP — dsh-memory-scoped 0.2.1
 
 ## 已完成
 

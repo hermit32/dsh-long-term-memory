@@ -1,8 +1,8 @@
 # dsh-memory-scoped — 私人工作区长期记忆插件
 
-> Current release: **0.2.0**
+> Current release: **0.2.1**
 >
-> **实际使用状态**：本方案源自维护者长期使用的真实 DSH 记忆部署，相关长期记忆及微信交互能力已经投入日常使用；本仓库的匿名化公开 v0.2.0 包另有自动化测试。下方“未完成验收”是指特定触发链路及公开部署兼容性的可复现证据仍待补齐，**并不表示项目尚未被使用**。
+> **实际使用状态**：本方案源自维护者长期使用的真实 DSH 记忆部署，相关长期记忆及微信交互能力已经投入日常使用；本仓库的匿名化公开 v0.2.1 包另有自动化测试。下方“未完成验收”是指特定触发链路及公开部署兼容性的可复现证据仍待补齐，**并不表示项目尚未被使用**。
 
 > 本包是 **`dsh-memory` 的受控分支**，不是上游发布包。上游为 `haitang1/dsh-memory`
 > v0.5.0（commit `15de1c7`，MIT）。为公开发布，包名、模块名和默认值已做匿名化处理；
@@ -189,7 +189,7 @@
   cookie）；`connection` 缺失时 **fail closed 返回 503**，没有 loopback 降级。
 - 控制台请求体只能指定 action 和记忆字段，不能指定工作区、scope、目录或文件路径。
 
-> **安全范围说明（v0.2.0）**：以下独立 MCP 服务已接受额外的内容、标签、合并计划与删除 journal 脱敏回归测试。Cordis 宿主工具 `memory_merge` / `memory_delete` 尚未完全同步这些附加防护，不能将 MCP 的安全结果视为所有入口一致。
+> **安全范围说明（v0.2.1）**：独立 MCP 服务与 Cordis 宿主工具现在共用 `lib/store.js` 的同一组写入防护——content/tags 凭据扫描、`memory_update` 最终状态校验、基于 `planMergeEntries()` 的唯一合并计划、删除 journal 脱敏。两端的回归测试分别为 `test/mcp.security.test.js` 与 `test/host-security.test.js`，并由 `scripts/check-release.mjs` 同时做源码级校验。
 
 ### 独立 MCP server（`bin/dsh-memory-mcp.mjs`）
 
@@ -249,7 +249,7 @@ cd dsh-memory-scoped
 node --test
 ```
 
-The test suite runs 187 tests: 184 pass, 3 skip, 0 fail. 本包实测：**187 项，184 通过，3 跳过，0 失败**（跳过项需要外部 embeddings 服务 /
+The test suite runs 192 tests: 189 pass, 3 skip, 0 fail. 本包实测：**192 项，189 通过，3 跳过，0 失败**（跳过项需要外部 embeddings 服务 /
 MCP 运行时）。测试是纯 Node，不需要 DSH 宿主。
 
 额外可复现集成 harness：`node acceptance/curator-harness.mjs all`（需要 DSH peer packages；

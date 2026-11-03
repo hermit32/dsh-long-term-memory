@@ -112,7 +112,7 @@ bin/dsh-memory-mcp.mjs 独立 stdio MCP server（9 个工具）
 - **孤儿兜底**：保留非活跃会话定时整理。跨会话批次中每个来源 session 仍有独立游标及 provenance。
 - **局限**：模拟事件通过，但真实微信 `/new`、完整 DSH 冷启动及真实外部模型多会话整理尚未全部验收。
 
-**独立 MCP 的安全边界：** `bin/dsh-memory-mcp.mjs` 使用 `DSH_MEMORY_ALLOWED_ROOTS` 白名单限制 scope，写入前拒绝内容与 tags 的凭据；`memory_merge` 使用存储层唯一 `planMergeEntries()` 计划。该附加入口与 Cordis 宿主 `memory_merge`/`memory_delete` 的安全措施尚未完全一致，不可把 MCP 的专项加固结论直接外推到全部宿主工具。
+**写入路径的安全边界（宿主与 MCP 共用）：** `lib/store.js` 提供 `assertNoSecrets()`、`assertNoSecretTags()`、`journalEntrySnapshot()` 与唯一的 `planMergeEntries()` 合并计划；Cordis 宿主工具和 `bin/dsh-memory-mcp.mjs` 都调用同一组函数，因此 content/tags 凭据扫描、`memory_update` 最终状态校验、`memory_merge` 参与者与计划校验、`memory_delete` journal 脱敏在两端行为一致。独立 MCP 另外使用 `DSH_MEMORY_ALLOWED_ROOTS` 白名单限制 scope，这是宿主插件不需要的入口差异，而不是防护强度差异。
 
 ### 作用域键
 

@@ -263,6 +263,43 @@ export function redactSecrets(text, findings = detectSecrets(text)) {
   return output
 }
 
+/**
+ * Refuse text that looks like a stored credential. Shared by the standalone MCP
+ * server and the host Cordis tools so both write paths reject the same shapes
+ * with the same message; `tool` names the calling tool in the error.
+ */
+export function assertNoSecrets(text, tool, field = 'content') {
+  const secrets = detectSecrets(text)
+  if (secrets.length > 0) {
+    throw new Error(`${tool}: ${field} looks like a credential (${secrets.map((item) => item.type).join(', ')}); credentials are never stored`)
+  }
+}
+
+/** Refuse any tag that looks like a stored credential: tags are persisted too. */
+export function assertNoSecretTags(tags, tool) {
+  const list = Array.isArray(tags) ? tags : []
+  for (const tag of list) assertNoSecrets(tag, tool, 'tag')
+}
+
+/**
+ * Delete events copy the removed entry into the journal, which is itself a
+ * persisted file and is replayed on rollback. A legacy tainted entry must not
+ * round-trip its credential there: clean entries are journaled verbatim, while
+ * tainted ones keep their metadata but redact the content and only the tags
+ * that matched.
+ */
+export function journalEntrySnapshot(entry) {
+  const contentSecrets = detectSecrets(entry.content)
+  const tags = Array.isArray(entry.tags) ? entry.tags : []
+  const taintedTags = tags.some((tag) => detectSecrets(tag).length > 0)
+  if (contentSecrets.length === 0 && !taintedTags) return entry
+  return {
+    ...entry,
+    content: '[redacted: credential content removed on delete]',
+    tags: tags.map((tag) => (detectSecrets(tag).length > 0 ? '[redacted]' : tag))
+  }
+}
+
 export function contentFingerprint(value) {
   return hashText(normalizedContent(value))
 }

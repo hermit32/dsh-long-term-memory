@@ -41,6 +41,10 @@ foreach ($extra in $ExtraPatterns) {
 $allowedWorkspaceIds = @('ws-0123456789abcdef')
 $allowedEmails = @('user@example.com', 'noreply@example.com', 'you@example.com')
 $allowedSessionIds = @('session-11111111-1111-4111-8111-111111111111')
+# Sanitized fixtures and evidence legitimately show "C:\Users\example\..."; the
+# placeholder name is not personal data. Keep this list short and literal: any
+# other user segment (i.e. a real account name) still fails the scan.
+$allowedUserSegments = @('example', 'user', 'username', 'you')
 
 # Detection code and test fixtures legitimately contain fake credentials; only
 # the credential-shaped categories are exempt there, never the identity classes.
@@ -76,7 +80,11 @@ foreach ($file in $files) {
         if ($category.Name -eq 'workspace-id' -and ($allowedWorkspaceIds -contains $value)) { continue }
         if ($category.Name -eq 'email' -and ($allowedEmails -contains $value.ToLowerInvariant())) { continue }
         if ($category.Name -eq 'session-uuid' -and ($allowedSessionIds -contains $value)) { continue }
-        if ($category.Name -eq 'local-user-path' -and $value -match '<') { continue }
+        if ($category.Name -eq 'local-user-path') {
+          if ($value -match '<') { continue }
+          $segments = $value -split '\\+'
+          if ($segments.Count -ge 3 -and ($allowedUserSegments -contains $segments[2].ToLowerInvariant())) { continue }
+        }
         [void]$findings.Add([pscustomobject]@{
           Path     = $relative
           Line     = $index + 1

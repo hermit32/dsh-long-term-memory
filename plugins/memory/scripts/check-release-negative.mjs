@@ -10,8 +10,12 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { spawnSync } from 'node:child_process'
+import { fileURLToPath } from 'node:url'
 
-const root = path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'))
+// fileURLToPath, not URL.pathname: the latter percent-encodes non-ASCII path
+// segments (e.g. a Chinese checkout directory), so copyFileSync below would
+// look for a literal "%E5%AE%9E..." path and fail.
+const root = path.dirname(fileURLToPath(import.meta.url))
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'dsh-check-release-negative-'))
 try {
   fs.mkdirSync(path.join(tmp, 'scripts'), { recursive: true })

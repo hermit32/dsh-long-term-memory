@@ -1,8 +1,8 @@
-# v0.2.0 功能状态与限制
+# v0.2.1 功能状态与限制
 
-**本项目的首要目标是为 DeepSeek Harness 提供长期记忆解决方案。维护者已在自己的真实 DSH 桌面环境中持续使用相关长期记忆和微信交互能力，并非仅有模拟测试的原型。** 本表将维护者日常使用反馈、公开 v0.2.0 自动化测试，以及专项端到端验收记录**分别列明**；不能把“未留下独立完整验收记录”理解为“没人用过”或“功能不可用”，也不能把日常使用直接当作对所有公开部署场景的稳定性保证。
+**本项目的首要目标是为 DeepSeek Harness 提供长期记忆解决方案。维护者已在自己的真实 DSH 桌面环境中持续使用相关长期记忆和微信交互能力，并非仅有模拟测试的原型。** 本表将维护者日常使用反馈、公开 v0.2.1 自动化测试，以及专项端到端验收记录**分别列明**；不能把“未留下独立完整验收记录”理解为“没人用过”或“功能不可用”，也不能把日常使用直接当作对所有公开部署场景的稳定性保证。
 
-> **部署区别**：维护者的个性化生产部署与 GitHub 脱敏公开的 `dsh-memory-scoped 0.2.0` 候选版本不一定是同一个安装实例。本文不将维护者实际使用经验冒充为已对公开包执行完整冷安装/迁移验证。
+> **部署区别**：维护者的个性化生产部署与 GitHub 脱敏公开的 `dsh-memory-scoped 0.2.1` 候选版本不一定是同一个安装实例。本文不将维护者实际使用经验冒充为已对公开包执行完整冷安装/迁移验证。
 
 | 能力 | 状态 | 依据与限制 |
 | --- | --- | --- |
@@ -15,9 +15,10 @@
 | Curator attribution、防无来源新增 | ✅ 逻辑与隔离 harness | transcript lines 传给归因；来源会话和事件记录在 provenance 中 |
 | 成功写入后游标保存失败的重试 | ✅ 隔离故障注入有证据 | pending 保留且重复写入被去重；未在真实 LLM/真实 Host 中注入故障 |
 | 独立 MCP 的凭据拒写 / 作用域白名单 | ✅ 本地安全测试 | 22/22 通过；包括内容、标签、合并计划、journal 删除快照。历史读取不自动脱敏 |
-| 宿主 Cordis 工具与 MCP 安全策略完全一致 | ⚠️ **尚未完成** | 宿主 `memory_merge`/`memory_delete` 未完全同步 MCP 专项校验；不能误称全入口加固 |
+| 宿主 Cordis 工具与 MCP 安全策略完全一致 | ✅ 共用同一实现 | 两端都调用 `lib/store.js` 的 `assertNoSecrets`/`assertNoSecretTags`/`journalEntrySnapshot`；宿主 `memory_merge` 拒绝重复 ID、非法 `keepId`，并在落盘前检查全部参与者与 `planMergeEntries()` 结果；`test/host-security.test.js` + `test/mcp.security.test.js` 回归 |
 | 会话删除（修改版） | ✅/🟡 单元测试通过 | v0.1.0 既有 14/14；真实 Host 端到端删除未执行 |
 | 其他工作区单向通知 | 🟡 代码与部分验证 | Windows PowerShell 脚本；真实 IM 发送本次未复验；本地投递接口无认证 |
+| 发布检查工具（非 ASCII 路径 / 脱敏扫描） | ✅ 本地复验 | `test-patch` 与 `check-release-negative` 改用 `fileURLToPath`，在 `X:\AI\实验室\...` 下通过；`privacy-scan` 允许文档化占位账号，真实用户名仍命中 |
 | 工作区隔离 | ✅ 应用层 | 记忆工具/提示词层隔离，不提供 OS 文件系统隔离 |
 
 ## 实际使用与发布验证的关系
@@ -28,7 +29,7 @@
 
 ## 本轮发布验收
 
-- `plugins/memory`: **187 tests / 184 pass / 3 skip / 0 fail**（独立 Linux Node 22.16.0 复测）。
+- `plugins/memory`: **192 tests / 189 pass / 3 skip / 0 fail**（Windows Node 24.22.1 复测；v0.2.0 候选包此前为 187 项，Linux Node 22.16.0）。
 - `test/mcp.security.test.js`：**22 项全部通过**；补丁矩阵、发布反向检测通过。
 - `plugins/session-manager`: v0.1.0 既有 **14 项通过**，本次未修改该插件。
 - `plugins/memory/acceptance/curator-harness.mjs`: 早前在具备 DSH peer 的隔离环境运行 `abc/wechat/partial/deferred/fault` 有通过证据；**最新轮次未能独立复跑**。
@@ -44,4 +45,4 @@
 6. 同一系统账户下的其他 Agent 拥有任意文件读取工具时，仍可读取记忆文件。
 7. IM 只验证过微信通道的既有使用场景；其他 IM 渠道、看门狗不包含在本方案的验收范围。
 
-详细证据见 [v0.2.0 验收记录](review/v0.2.0/ACCEPTANCE.md) 和 [TEST-REPORT](review/v0.2.0/TEST-REPORT.md)。旧版状态保留在 Git 历史中，不应与 v0.2.0 当前功能混淆。
+详细证据见 [v0.2.0 验收记录](review/v0.2.0/ACCEPTANCE.md) 和 [TEST-REPORT](review/v0.2.0/TEST-REPORT.md)；v0.2.1 的维护性修复见 [CHANGELOG](plugins/memory/CHANGELOG.md)。旧版状态保留在 Git 历史中，不应与 v0.2.1 当前功能混淆。

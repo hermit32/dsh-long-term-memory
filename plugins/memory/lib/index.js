@@ -42,6 +42,9 @@ import {
   summaryVersion,
   ensureVersionLine,
   detectSecrets,
+  assertNoSecretTags,
+  assertNoSecrets,
+  journalEntrySnapshot,
   finishError,
   findNearDuplicateGroups,
   hashText,
@@ -2282,9 +2285,9 @@ export function toolDefinitions(store, resolved, requestConsolidation, runtimeSt
         assertWritableScope(route)
         await ensureRuntime(route.runtime)
         const content = validateContent(args && args.content !== undefined ? args.content : '')
-        const secrets = detectSecrets(content)
-        if (secrets.length > 0) throw new Error(`memory_add: content looks like a credential (${secrets.map((item) => item.type).join(', ')}); credentials are never stored`)
+        assertNoSecrets(content, 'memory_add')
         const tags = normalizeTags(args && args.tags)
+        assertNoSecretTags(tags, 'memory_add')
         const importance = Number.isFinite(args && args.importance) ? Math.min(3, Math.max(0, Math.trunc(args.importance))) : 1
         const allowDuplicate = args && args.allowDuplicate === true
         const result = await route.store.withLock(async () => {
@@ -2337,19 +2340,22 @@ export function toolDefinitions(store, resolved, requestConsolidation, runtimeSt
         const patch = {}
         if (args.content !== undefined) {
           patch.content = validateContent(args.content)
-          const secrets = detectSecrets(patch.content)
-          if (secrets.length > 0) throw new Error(`memory_update: content looks like a credential (${secrets.map((item) => item.type).join(', ')}); credentials are never stored`)
+          assertNoSecrets(patch.content, 'memory_update')
         }
         if (args.tags !== undefined) patch.tags = normalizeTags(args.tags)
         if (args.importance !== undefined) patch.importance = Math.min(3, Math.max(0, Math.trunc(args.importance)))
         const result = await route.store.withLock(async () => {
           const entries = await route.store.readRawEntries()
           const before = entries.find((entry) => entry.id === id)
+          if (before === undefined) throw new Error('memory_update: entry not found')
+          // Validate the state that will actually be stored, not only the fields
+          // the caller supplied: an update must never preserve a credential in a
+          // legacy entry written before this policy existed. Same rule as the MCP.
+          assertNoSecrets(patch.content !== undefined ? patch.content : before.content, 'memory_update')
+          assertNoSecretTags(patch.tags !== undefined ? patch.tags : before.tags, 'memory_update')
           // `updateRawEntry` mutates `before` in place; keep the old text for
           // the summary scrub so the stale bullet is the one that disappears.
-          const beforeSnapshot = before === undefined
-            ? undefined
-            : { ...before, tags: Array.isArray(before.tags) ? [...before.tags] : [] }
+          const beforeSnapshot = { ...before, tags: Array.isArray(before.tags) ? [...before.tags] : [] }
           const entry = await route.store.updateRawEntry(id, patch)
           await route.store.appendJournal({ op: 'update', id: entry.id, ts: entry.ts, entry })
           return { id: entry.id, content: entry.content, before: beforeSnapshot }
@@ -2388,7 +2394,9 @@ export function toolDefinitions(store, resolved, requestConsolidation, runtimeSt
         if (id.length === 0) throw new Error('memory_delete: id is required')
         const result = await route.store.withLock(async () => {
           const entry = await route.store.deleteRawEntry(id)
-          await route.store.appendJournal({ op: 'delete', id: entry.id, ts: entry.ts, entry })
+          // Deleting a legacy tainted entry must not copy its credential into
+          // the journal, which is itself persisted and replayed on rollback.
+          await route.store.appendJournal({ op: 'delete', id: entry.id, ts: entry.ts, entry: journalEntrySnapshot(entry) })
           return { id: entry.id, entry }
         })
         await noteToolWrite(route.runtime, result.id, {
@@ -2499,12 +2507,29 @@ export function toolDefinitions(store, resolved, requestConsolidation, runtimeSt
         await ensureRuntime(route.runtime)
         const ids = Array.isArray(args && args.ids) ? args.ids.map((id) => String(id).trim()).filter(Boolean) : []
         if (ids.length < 2) throw new Error('memory_merge: at least two entry ids are required')
+        // Duplicates would make the store merge a different set than the caller
+        // listed; reject them before the store dedupes.
+        if (new Set(ids).size !== ids.length) throw new Error('memory_merge: duplicate entry ids are not allowed')
         const keepId = String(args && args.keepId !== undefined ? args.keepId : ids[0]).trim()
+        if (!ids.includes(keepId)) throw new Error('memory_merge: keepId must be one of ids')
         let removedEntries = []
         const result = await route.store.withLock(async () => {
-          const { kept, removed } = await route.store.mergeRawEntries(ids, keepId)
+          const { kept, removed } = await route.store.mergeRawEntries(ids, keepId, {
+            // The store hands this validator the exact plan it is about to
+            // write. Scanning every participant also covers the delete events
+            // journaled below, so a legacy credential cannot reach raw or
+            // journal through the host tool either (same rule as the MCP).
+            validate: (plan, targets) => {
+              for (const entry of targets) {
+                assertNoSecrets(entry.content, 'memory_merge')
+                assertNoSecretTags(Array.isArray(entry.tags) ? entry.tags : [], 'memory_merge')
+              }
+              assertNoSecrets(plan.kept.content, 'memory_merge')
+              assertNoSecretTags(plan.kept.tags, 'memory_merge')
+            }
+          })
           await route.store.appendJournal({ op: 'update', id: kept.id, ts: kept.ts, entry: kept })
-          for (const entry of removed) await route.store.appendJournal({ op: 'delete', id: entry.id, ts: entry.ts, entry })
+          for (const entry of removed) await route.store.appendJournal({ op: 'delete', id: entry.id, ts: entry.ts, entry: journalEntrySnapshot(entry) })
           removedEntries = removed
           return { id: kept.id, mergedIds: [kept.id, ...removed.map((entry) => entry.id)], content: kept.content }
         })

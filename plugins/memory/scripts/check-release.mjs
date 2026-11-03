@@ -148,6 +148,53 @@ if (!existsSync(mcpBin)) {
   }
 }
 
+// 5. Host Cordis tools and the standalone MCP must share one write path. The
+// MCP gates above only proved the bin; the host tools used to keep their own
+// weaker checks, so a legacy tainted entry could reach raw memory or the
+// journal through the chat-facing tools.
+const hostFile = join(root, 'lib', 'index.js')
+const hostSource = existsSync(hostFile) ? readFileSync(hostFile, 'utf8') : ''
+if (hostSource.length === 0) {
+  fail('host plugin entry', 'lib/index.js', '(missing)')
+}
+function hostGuardCallCount(name) {
+  return hostSource.split('\n').filter((line) => line.includes(name) && !line.includes('function ')).length
+}
+const hostSecretCalls = hostGuardCallCount('assertNoSecrets(')
+if (hostSecretCalls < 4) {
+  fail('host write-path credential guards', '>= 4 assertNoSecrets calls (add/update/merge)', hostSecretCalls)
+}
+const hostTagCalls = hostGuardCallCount('assertNoSecretTags(')
+if (hostTagCalls < 3) {
+  fail('host tag credential guards', '>= 3 assertNoSecretTags calls (add/update/merge)', hostTagCalls)
+}
+const hostSnapshotCalls = hostGuardCallCount('journalEntrySnapshot(')
+if (hostSnapshotCalls < 2) {
+  fail('host delete journal redaction', '>= 2 journalEntrySnapshot calls (delete/merge)', hostSnapshotCalls)
+}
+if (!hostSource.includes('duplicate entry ids are not allowed')) {
+  fail('host merge duplicate-id guard', 'duplicate ids rejected before the store dedupes', '(missing)')
+}
+if (!hostSource.includes('validate: (plan, targets)')) {
+  fail('host merge validator', 'mergeRawEntries called with validate(plan, targets)', '(missing)')
+}
+
+// 6. Parse every shipped entry point. The host-wiring apply() smoke test skips
+// when the DSH peer packages are absent, so a syntax error inside lib/index.js
+// used to pass this whole gate on a zero-dependency checkout.
+for (const file of ['lib/index.js', 'lib/store.js', 'lib/client.js', 'bin/dsh-memory-mcp.mjs']) {
+  if (!existsSync(join(root, file))) {
+    fail(`entry point ${file}`, 'present', '(missing)')
+    continue
+  }
+  const checked = spawnSync(process.execPath, ['--check', join(root, file)], { encoding: 'utf8' })
+  if (checked.error !== undefined) {
+    fail(`syntax spawn ${file}`, 'successful spawn', checked.error.message)
+  } else if (checked.status !== 0) {
+    fail(`syntax check ${file}`, 0, checked.status)
+  }
+}
+
 const mcpSecurityTest = join(root, 'test', 'mcp.security.test.js')
 if (!existsSync(mcpSecurityTest)) {
   fail('MCP security regression test', 'test/mcp.security.test.js', '(missing)')

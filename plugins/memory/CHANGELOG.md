@@ -1,5 +1,38 @@
 # Changelog
 
+## 0.2.1 (2026-11-03)
+
+Maintenance patch: the host Cordis tools now share the standalone MCP write
+guards, and the release gate itself works from Windows checkouts whose path
+contains non-ASCII characters.
+
+### Host/MCP write-path parity
+
+- `lib/store.js` now owns `assertNoSecrets()`, `assertNoSecretTags()` and
+  `journalEntrySnapshot()`; `bin/dsh-memory-mcp.mjs` imports them instead of
+  keeping a private copy, so the two entry points cannot drift apart.
+- Host `memory_add` scans normalized tags as well as content; `memory_update`
+  validates the final stored state (content + tags), so an unrelated edit can no
+  longer preserve a legacy credential; `memory_delete` journals a redacted
+  snapshot; `memory_merge` rejects duplicate ids and an invalid `keepId` and
+  validates every participant plus the exact `planMergeEntries()` output before
+  writing. None of these change the store's merge rules; they only add checks.
+- Added `test/host-security.test.js` (5 tests). `scripts/check-release.mjs` now
+  gates the host guard calls, the duplicate-id/plan validator, and parses every
+  shipped entry point with `node --check` — a syntax error in `lib/index.js` used
+  to pass the whole gate when the host-wiring smoke test skipped for missing
+  peer packages. Suite is 192 tests (189 pass / 3 skip / 0 fail).
+
+### Release tooling fixes
+
+- `patches/test-patch.mjs` and `scripts/check-release-negative.mjs` resolve
+  their own directory with `fileURLToPath`, so they run from checkouts whose
+  path contains non-ASCII characters (for example `X:\AI\实验室\...`). Both
+  scripts previously percent-encoded the path and failed before testing anything.
+- `tests/privacy-scan.ps1` no longer flags the documented sanitized placeholder
+  account `C:\Users\example\...` used by fixtures and evidence; any other user
+  segment is still reported.
+
 ## 0.2.0 (2026-10-30)
 
 Final RC3 polish for the public v0.2.0 line: workspace-total threshold doc fix,

@@ -7,8 +7,12 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { spawnSync } from 'node:child_process'
+import { fileURLToPath } from 'node:url'
 
-const root = path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'))
+// fileURLToPath, not URL.pathname: the latter percent-encodes non-ASCII path
+// segments (e.g. a Chinese checkout directory), so spawning the patch script
+// below would fail with ENOENT.
+const root = path.dirname(fileURLToPath(import.meta.url))
 const script = path.join(root, 'apply-dsh-im-patch.mjs')
 const sourceOld = [
   "      if (!hasImages && !hasFiles && command === '/new') {",

@@ -31,9 +31,11 @@ import {
   RAW_FILE,
   SUMMARY_FILE,
   DEFAULT_MAX_CONTENT_BYTES,
-  detectSecrets,
+  assertNoSecretTags,
+  assertNoSecrets,
   findGitRoot,
   findNearDuplicateGroups,
+  journalEntrySnapshot,
   normalizeScopeArg,
   normalizeTags,
   projectScopeKey,
@@ -123,33 +125,6 @@ function allowedRootFor(cwd) {
     return target === workspaceRoot.compare ||
       target.startsWith(workspaceRoot.compare.endsWith(sep) ? workspaceRoot.compare : `${workspaceRoot.compare}${sep}`)
   })
-}
-
-function assertNoSecrets(text, tool, field = 'content') {
-  const secrets = detectSecrets(text)
-  if (secrets.length > 0) {
-    throw new Error(`${tool}: ${field} looks like a credential (${secrets.map((item) => item.type).join(', ')}); credentials are never stored`)
-  }
-}
-
-function assertNoSecretTags(tags, tool) {
-  const list = Array.isArray(tags) ? tags : []
-  for (const tag of list) assertNoSecrets(tag, tool, 'tag')
-}
-
-// Deleting a legacy tainted entry must not copy its credential into the
-// journal: the journal is another persisted file and is replayed on rollback.
-// Clean entries are journaled verbatim; tainted ones keep their metadata only.
-function journalEntrySnapshot(entry) {
-  const contentSecrets = detectSecrets(entry.content)
-  const tags = Array.isArray(entry.tags) ? entry.tags : []
-  const taintedTags = tags.some((tag) => detectSecrets(tag).length > 0)
-  if (contentSecrets.length === 0 && !taintedTags) return entry
-  return {
-    ...entry,
-    content: '[redacted: credential content removed on delete]',
-    tags: tags.map((tag) => (detectSecrets(tag).length > 0 ? '[redacted]' : tag))
-  }
 }
 
 function requestedScope(value) {

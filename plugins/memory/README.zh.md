@@ -1,6 +1,6 @@
 # dsh-memory-scoped — 私人工作区长期记忆
 
-> 当前版本：**0.2.0**
+> 当前版本：**0.2.1**
 > 本包基于 `haitang1/dsh-memory` v0.5.0 的受控分支；包名、插件 ID、设置命名空间、
 > 客户端 bundle 均为 `dsh-memory-scoped`。
 
@@ -13,6 +13,9 @@
   拒绝重复 ID 并在落盘前检查全部参与者与最终结果；`workspace` / `project`
   作用域只允许 `DSH_MEMORY_ALLOWED_ROOTS` 内的路径，`global` 需要
   `DSH_MEMORY_ALLOW_GLOBAL=1`；回归测试见 `test/mcp.security.test.js`。
+- 宿主 Cordis 工具与 MCP 共用同一组 `lib/store.js` 防护（content/tags 扫描、
+  update 最终状态校验、merge 计划校验、delete journal 脱敏）；回归测试见
+  `test/host-security.test.js`，两端不再各自实现一套策略。
 - 工作区全部 owned 根会话的未整理有效回合累计达到阈值（默认 20）时，
   后台 Curator 跨会话分批整理；每个会话保留独立 cursor 和来源。
 - 桌面新建 `startup` 触发；打开已有/恢复 `resume` 不触发。
@@ -42,7 +45,7 @@ node --test
 node scripts/check-release.mjs
 ```
 
-运行 187 项测试：184 通过，3 跳过，0 失败。  
+运行 192 项测试：189 通过，3 跳过，0 失败。  
 集成 harness（需要 DSH peer packages）：
 
 ```powershell
