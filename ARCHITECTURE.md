@@ -1,198 +1,62 @@
-# ARCHITECTURE.md — 组件与数据流
+# Feiyu Memory 1.3.0 技术架构
 
-## 总览
+## 两层记忆，而不是三个概念
 
-![长期记忆核心流程](docs/long-term-memory-flow.svg)
+- **短期记忆**：`raw_memories.md` 存放由 `memory_add` / Curator 提取的原子事实和状态变化。可以搜索、更新、软删除、恢复；来源、删除和修改历史独立保留。
+- **长期记忆**：`memory_summary.md` 是 AI 综合后的用户认知。Curator 读取新增对话、短期记忆和现有长期记忆，语义去重、修正旧状态；用户改动可自动锁定并逐条解锁。
+- **索引和历史**只是目录及管理机制，不是第三层记忆；不应把机械分组的 Markdown 拼接冒充 AI 长期总结。
 
-上图是 **长期记忆系统的核心数据流**；下方结构图则补充工作区、会话管理和微信通知等配套组件。原始[私人 AI 工作区架构图](docs/legacy/DeepSeek%20私人%20AI%20工作区架构图.png)保留为历史资料。
-
-```text
-                    ┌──────────────────────────────────────────────┐
-                    │ DSH Host (0.2.1-rc.3, desktop profile)        │
-                    │                                              │
-  IM 消息 ─────────▶│  @xmanrui/dsh-im ──▶ 私人工作区根会话          │
-  (仅微信已验证)      │                        │                     │
-                    │                        ├─ 指令文件            │
-                    │                        │   <ws>/AGENTS.local.md│
-                    │                        │   <ws>/CLAUDE.md     │
-                    │                        │   ~/.dsh/AGENTS.md   │
-                    │                        │                     │
-                    │  dsh-memory-scoped ────┘                     │
-                    │   ├ 注入摘要 (systemPrompt.context)           │
-                    │   ├ 14 个 memory_* 工具                       │
-                    │   ├ 回合计数 → curator → consolidation         │
-                    │   └ /_dsh/memory/{console,settings} (认证)    │
-                    │                                              │
-                    │  session-cascade-delete                      │
-                    │   ├ UI 删除路由 (认证)                        │
-                    │   ├ session_delete 工具 (按工作区隔离)         │
-                    │   └ emit session-delete/deleted ──▶ 记忆清理   │
-                    └──────────────────────────────────────────────┘
-                                    ▲
- 工作区 A、工作区 B ── notify.ps1 ─────────┘（只发文字，不改绑定/不回复）
+```mermaid
+flowchart TD
+  Desktop["DSH Desktop 根会话"] --> Events["会话事件/完整回合"]
+  IM["微信 dsh-im（可选）"] --> Events
+  Events --> Tools["memory_add / memory_update"]
+  Tools --> Short["短期记忆 raw_memories.md"]
+  Events --> Counter["工作区级游标 + 未整理回合计数"]
+  Counter --> Threshold{"合计 ≥ 20 轮？"}
+  Threshold -->|否| Counter
+  Threshold -->|是| Extract["Curator 第一阶段：增量短期事实提取"]
+  Extract --> Short
+  Short --> Synthesis["第二阶段：AI 语义综合"]
+  Long["已有长期记忆 memory_summary.md"] --> Synthesis
+  Synthesis --> Validate["引用、锁定块、删除保护及校验"]
+  Validate --> Long
+  Long --> Injection["完整或增量同步（无累计硬上限）"]
+  Short -. 可按需检索 .-> Injection
+  Injection --> Desktop
+  Injection --> IM
+  User["用户编辑/删除/恢复/回滚"] --> Short
+  User --> Long
 ```
 
-## 三层职责
+## 触发与同步是两条独立链路
 
-| 层 | 组件 | 职责 | 不是它做的 |
-| --- | --- | --- | --- |
-| DSH 核心 | `dsh-agent-instructions`、`dsh-settings`、`dsh-tools`、`connection`、`sessions` | 指令文件发现、设置接缝、工具注册、请求认证、会话列表 | 不提供长期记忆、不提供删除插件策略 |
-| 本项目插件 | `dsh-memory-scoped`、`session-cascade-delete`（修改版） | 记忆策略、curator、控制台、按工作区隔离的会话删除 | 不重写 DSH 存储、不修改 DSH 核心 |
-| 本地脚本 | `notify.ps1` + `lib/dsh-host.ps1` | 发现 Host、校验进程归属、去重、排队、补发 | 不接收消息、不改变绑定、不执行主工作区操作 |
+1. **自动总结**：所有私人工作区根会话累计 **20 个完整回合**，Curator 通过 DSH 模型服务触发两阶段整理；新建/结束根会话仅提前检查，不会绕过阈值；子代理不会独立累计。游标持久化于 `curator.json`。
+2. **同步**：短期或长期记忆变化后，系统向存活根会话同步；无变化不注入、同轮多次更新合并；普通变化用增量，删除/压缩后必要时用完整快照。**没有累计 8/14 次硬上限**。
+3. **上下文压缩**：监听 DSH `compaction`，在下一次可用的 `agent/pre-step` 重新提供最新长期记忆；这并不保证旧快照被物理删除。
+4. **安全**：只在配置的私人工作区及根会话内注册写工具；Host 需要登录 Cookie，失败时拒绝写入；短期软删除会过滤仅由被删 ID 支持的长期 claim。语义改写仍可能逃过文本级遗忘指纹匹配。
 
-## 长期记忆的数据流：提取与整合是两步
+## 关键文件
 
-本项目不是对每个会话进行一次静态压缩，而是将对话中的**可持续使用的信息**抽取为持久条目，再生成供后续提示词使用的摘要：
+| 类别 | 路径 | 作用 |
+|---|---|---|
+| 短期记忆 | `raw_memories.md` | 原子事实；有效、软删除 |
+| 长期记忆 | `memory_summary.md` | AI 合成后的认知和用户锁定块 |
+| 历史 | `summary_history/` | 长期版本历史、索引及回滚 |
+| 修改/删除 | `revisions.jsonl` / `tombstones.jsonl` | 修订快照与删除指纹 |
+| 状态 | `state.json` / `curator.json` | 模式、游标、阈值、整理状态 |
+| 日志 | `journal.jsonl` | 追踪写操作 |
+| 插件宿主 | `lib/index.js` | 工具、Host API、会话与注入 |
+| AI 总结 | `lib/curator.js` | 两阶段 Curator |
+| 快照 | `lib/injection.js` | 同会话/跨会话同步与完整快照 |
+| 用户设置 | `lib/client.js` | 短期/长期编辑、删除、锁定、回滚 |
 
-```text
-user/assistant 对话事件
-    ↓  agent/turn-stopping：每个私人根会话按事件序号累计 pending
-工作区总 pending ≥ curateEveryTurns（默认 20）
-    ↓  也可由新建私人根会话、微信 /new 补丁事件、孤儿兜底触发
-runWorkspaceCurator()：按最久未整理顺序选择 owned 会话
-    ↓  每个会话单独获取 cursor 之后的 transcript
-runCurator() → LLM 的 add/update/merge/no-op 提案
-    ↓  validateCuratorOperations() → attributeCuratorOperations()
-MemoryStore：raw_memories.md / journal.jsonl / provenance.json
-    ↓  成功后推进该会话 cursor；失败保留 pending
-Consolidation → memory_summary.md（有界摘要）
-    ↓  下一次生成 prompt 时重新读取并注入
-新的私人工作区会话使用已保存记忆
-```
+## 12 个记忆工具
 
-- **Curator = 提取与更新。** 分析未处理的对话，提出记忆操作，验证事实来源，不把无根据的推测写入长期记忆。
-- **Consolidation = 整合与摘要。** 有有效写入时，整理已有条目为可注入提示词的摘要；不需要把所有历史原文重新传给新会话。
-- **工作区任务 ≠ 单一混合会话。** A=8、B=6、C=6 共 20 个有效回合触发一次工作区任务，但每个会话有自己的 transcript、cursor 和 provenance。
-- **失败与空结果。** 失败批次不扣 pending；有效 no-op 可以推进已检查的游标而不生成新记忆；运行中产生的新回合留待下一次处理。
-- **范围和验证。** 当前默认最多 8 批 × 8 会话。模拟模型隔离 harness 有通过证据，真实外部模型/微信 `/new`/Desktop 冷启动仍待端到端验收。见 [STATUS.md](STATUS.md)。
+`memory_add`、`memory_update`、`memory_search`、`memory_curate`、`memory_consolidate`、`memory_status`、`memory_forget`、`memory_restore`、`memory_summary_rollback`、`memory_history`、`memory_revert`、`memory_trace`。
 
-## 记忆插件内部
+长记忆编辑和逐块解锁使用设置页 Host API，不额外注册第十三个模型工具。
 
-```text
-lib/index.js        宿主接线：apply()、Config、工具定义、回合计数、
-                    curator、consolidation、注入、事件监听
-lib/scoped.js       纯策略：工作区判定、pending 状态机、curator 输入/校验、提示词
-lib/store.js        存储原语：raw/journal/summary 解析、原子写、锁、作用域、
-                    归档、BM25+向量搜索、凭据检测
-lib/attribution.js  来源归属：把 curator 建议对回对话行
-lib/provenance.js   provenance 侧车（有界）
-lib/curator-log.js  curator 运行日志（有界）
-lib/summary-scrub.js 摘要的确定性清理（exact match）
-lib/console.js      控制台服务：快照、增删改、恢复、设置
-lib/console-web.js  /_dsh/memory/console 路由
-lib/web.js          /_dsh/memory/settings 路由 + 设置补丁归一化
-lib/auth.js         统一认证（fail closed）
-lib/client.js       Web 客户端 bundle（设置页 UI）
-lib/automation.js   蒸馏/合并提示词与文本工具
-lib/volatile.js     DSH settings 的 volatile/secret 兼容层
-bin/dsh-memory-mcp.mjs 独立 stdio MCP server（9 个工具）
-```
+## 兼容性
 
-### v0.2.0 自动整理与记忆注入时序
-
-```text
-私人工作区根会话 A / B / C 的 agent/turn-stopping
-  └─ countEffectiveTurn（各自保存 pendingTurns 和 cursor）
-      └─ workspacePendingTotal = Σ owned 根会话 pendingTurns
-          ├ 合计未达到 curateEveryTurns（默认 20）→ 持续累计
-          └ 达到阈值 → scheduleWorkspaceCuration(scopeKey, 'threshold')
-              └─ runWorkspaceCurator（工作区任务锁）
-                  ├ 扫描 owned、未遗忘且 pending > 0 的会话
-                  ├ 按最久未处理排序；8 会话/批，最多 8 批
-                  ├ 每会话独立 cursor → transcript → LLM curator
-                  ├ 校验操作 + 基于 transcript lines 的 attribution
-                  ├ 应用记忆、写入 provenance、journal
-                  ├ 成功/空结果：只推进本会话 cursor、扣本次回合
-                  ├ 失败：保留 pending；处理中新增回合保留
-                  └ 有写入 → consolidation → 后续提示词注入摘要
-```
-
-- **桌面新建**：`agent/created`、`source=startup`、私人根会话时触发同一整理入口，`resume` 不触发。
-- **微信 `/new`**：可选 [`patches/`](patches/README.md) 为 dsh-im 提供 `dsh-im/new-session` 进程事件；监听器复核工作区和前一会话后触发。
-- **孤儿兜底**：保留非活跃会话定时整理。跨会话批次中每个来源 session 仍有独立游标及 provenance。
-- **局限**：模拟事件通过，但真实微信 `/new`、完整 DSH 冷启动及真实外部模型多会话整理尚未全部验收。
-
-**写入路径的安全边界（宿主与 MCP 共用）：** `lib/store.js` 提供 `assertNoSecrets()`、`assertNoSecretTags()`、`journalEntrySnapshot()` 与唯一的 `planMergeEntries()` 合并计划；Cordis 宿主工具和 `bin/dsh-memory-mcp.mjs` 都调用同一组函数，因此 content/tags 凭据扫描、`memory_update` 最终状态校验、`memory_merge` 参与者与计划校验、`memory_delete` journal 脱敏在两端行为一致。独立 MCP 另外使用 `DSH_MEMORY_ALLOWED_ROOTS` 白名单限制 scope，这是宿主插件不需要的入口差异，而不是防护强度差异。
-
-### 作用域键
-
-`scopeKeyForCwd(cwd)` = `ws-` + SHA-256(小写化、去尾分隔符的绝对路径) 前 16 位。
-因此 IM 会话与桌面会话只要是同一个工作区路径，就共享同一份记忆；路径不同即隔离。
-
-## 会话删除插件内部
-
-```text
-src/index.js           宿主接线、删除核心、UI 路由、session_delete 工具
-src/workspace-scope.js 纯函数：路径归一路径、workspace 归属、root 父链解析
-src/client.js          UI（头部按钮 + 侧栏菜单 + 确认弹窗）
-```
-
-删除核心（`deleteSessionCore`）：
-
-1. 解析目标 id 的多种拼写（`session-<uuid>` / uuid / 目录名）；
-2. 模型工具路径：`assertTargetInCallerWorkspace()` 用**新鲜的**注册表数据校验；
-3. 释放运行中的 agent 与 live session；
-4. 递归枚举 `ctx.subagents.listDescendants()`（只沿 `origin=subagent` 父链；
-   fork 分支不算）；
-5. 删除日志目录、投影缓存、工作区记账、归档/置顶；
-6. 再次校验工作区归属（缩小并发移动窗口）；
-7. 广播 `session-delete/deleted`。
-
-UI 路由没有 `callerWorkspace`，是全局管理员面；`session_delete` 工具必须有可证明的
-调用方工作区，否则拒绝。这是**有意的不对称**。
-
-## 通知链路
-
-```text
-notify.ps1
-  ├ 解析工作区根（workspace.json 注册表 → workspace-labels.json → 目录名）
-  ├ 选择 state 目录（工作区根/.dsh-notify 或中央目录）
-  ├ 去重（10 分钟窗口，SHA-256）
-  ├ Resolve-DeliveryEndpoint
-  │   ├ loopback-only 校验
-  │   ├ 端口 → 拥有进程 → 可执行文件路径 == appExe
-  │   └ dsh-im 路由探测（必须回 404 unknown-bot/unknown-target）
-  ├ POST {botId, targetId, text}
-  └ 失败 → 入队（JSONL，有界、可过期）；成功 → 清队列
-```
-
-没有固定端口；`endpoint` 覆盖项也走同一套校验。
-
-## 信任边界
-
-| 边界 | 规则 |
-| --- | --- |
-| 工作区 → 记忆 | 精确路径 + 根会话；其他一律空注入 + 工具拒绝 |
-| 模型 → 删除 | 只能操作调用方工作区内、可证明归属的会话 |
-| 本机进程 → 管理接口 | 必须有 DSH 签名的浏览器会话 cookie；无 connection 即 503 |
-| 本机进程 → 通知接口 | 只能向 loopback 上由 Harness 进程拥有的端口发送；**接口本身无认证**（已知限制） |
-| 工作区 A、工作区 B → 微信 | 只能发文字；botId/targetId 只读自中央配置；无回复通道 |
-| 通知内容 → 外发 | 由调用方负责不写入凭据；脚本不做内容审查 |
-
-### 这些边界不代表文件系统隔离（重要）
-
-“工作区 → 记忆”这一行是 **Harness 层的工具与提示词隔离**：它决定哪个会话能调用
-`memory_*`、能收到记忆注入。它**不改变操作系统权限**。
-
-- 同一系统用户下运行的其他工作区 Agent，如果拥有任意文件读取工具（`read`、
-  `Get-Content`、`pwsh` 等），仍然可以读取 `<memoryDir>` 里的记忆文件；
-- 它也可以读取 `notify-config.json`、`.dsh-notify` 状态和插件源码；
-- 本插件没有、也无法在纯插件层阻止这种访问。
-
-若需要 OS 级隔离，应组合使用：独立系统账户运行 Host、NTFS ACL 限制 `<memoryDir>`、
-沙箱/容器运行不可信 Agent、或移除其文件读取与 shell 权限。当前方案**不宣称**
-绝对安全隔离。
-
-## 数据与文件
-
-```text
-<memoryDir>/                     记忆数据（见 plugins/memory/README.md）
-<DSH_HOME>/AGENTS.md             全局指令
-<ws>/AGENTS.local.md             工作区 persona（DSH 原生加载）
-<ws>/CLAUDE.md                   记忆规则（DSH 原生加载）
-<ws>/.dsh-notify/                非私人工作区的通知状态
-<DSH_HOME>/assistant/            私人工作区的通知状态与脚本
-<DSH_HOME>/integrations/         IM 插件配置（不要手改）
-<DSH_HOME>/profiles/<p>/          profile bundle 与 patch
-<DSH_HOME>/storages/workspace.json  工作区注册表（子代理/通知共用）
-```
+本仓库新的 `plugins/feiyu-memory/` 是 `dsh-memory-feiyu 1.3.0`，不等于历史 `plugins/memory/`（`dsh-memory-scoped 0.2.1`）。从旧版升级需要审查数据结构、备份与来源，不能仅替换文件名。功能基于维护者在 Windows DSH Desktop 0.2.2-rc.1 的实际验收，不等于对所有 DSH 版本的兼容承诺。

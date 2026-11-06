@@ -1,0 +1,317 @@
+{
+  "name": "Feiyu Memory 1.3.0 public adaptation",
+  "source": "candidate(1).zip",
+  "note": "Public paths sanitized; live production installation remains unchanged.",
+  "files": [
+    {
+      "path": "ARCHITECTURE.md",
+      "bytes": 4032,
+      "sha256": "7763f2a3b864d62cde777c1ae1128e3943787a5c8dc53a11767e37b99602c34b"
+    },
+    {
+      "path": "INSTALL.md",
+      "bytes": 3633,
+      "sha256": "9e51f756c264c306edcdf7898c2c671e91c67cd61df333610447003c86f51ab2"
+    },
+    {
+      "path": "INSTALL_FOR_DSH.md",
+      "bytes": 4130,
+      "sha256": "4bb8ec50c36aceb3c0fcd6ad332faa2d06305e8ec5c2fc0a76c5f573d94f8c35"
+    },
+    {
+      "path": "LICENSING_1_3.md",
+      "bytes": 937,
+      "sha256": "dd1aeb0db7d8230f097afe4d4f179445ec9aa09ca5c179586904cffe30f70401"
+    },
+    {
+      "path": "README.md",
+      "bytes": 4628,
+      "sha256": "b9807d03a77162e9cad177db2f7d6cfe59996d9025f07fe11c530d7c4fb38243"
+    },
+    {
+      "path": "STATUS.md",
+      "bytes": 2063,
+      "sha256": "8777c1a9e8ca2f8ebff285e8edaa123b65bd25df2802a504aaa00f6b4b1702a4"
+    },
+    {
+      "path": "docs/feiyu-memory-flow.md",
+      "bytes": 720,
+      "sha256": "856a7e3987789d2f5a047dd3fb9822aa6991aea4dcbdfce981eb8ab02e37185c"
+    },
+    {
+      "path": "plugins/feiyu-memory/README.md",
+      "bytes": 12219,
+      "sha256": "54b78262817470b6dabe1b3680964e9738e3f2d7491678b0cc6296426dbada2f"
+    },
+    {
+      "path": "plugins/feiyu-memory/UPSTREAM_LICENSE_NOTICE.md",
+      "bytes": 841,
+      "sha256": "7400f83fb18877d8864299d444daf2294a9653770f9a5c5685ffae251163c790"
+    },
+    {
+      "path": "plugins/feiyu-memory/cordis.patch.yml",
+      "bytes": 1902,
+      "sha256": "35aec1962f04ba61e177b6699e55e38d3fcbdfcbf431db260e554722219f9c6f"
+    },
+    {
+      "path": "plugins/feiyu-memory/icon.svg",
+      "bytes": 2148,
+      "sha256": "59ab02e7b81c965a802cbf81e572e5c3e7325da8d37d476e64c633c4669a92ff"
+    },
+    {
+      "path": "plugins/feiyu-memory/lib/client.js",
+      "bytes": 65554,
+      "sha256": "200b03b06224566214e34ce67451d85152045f58f42889bcbabad0acc5e5025e"
+    },
+    {
+      "path": "plugins/feiyu-memory/lib/config.js",
+      "bytes": 7691,
+      "sha256": "3968a611ba0e0cec83f7ae369a0b2f4330c24ca424c13bd74bd39e35c90269e3"
+    },
+    {
+      "path": "plugins/feiyu-memory/lib/curator.js",
+      "bytes": 55225,
+      "sha256": "104fdf33eaa0cc05684d2225095dee0854d2f735888121b80128b624d94d46bb"
+    },
+    {
+      "path": "plugins/feiyu-memory/lib/feiyu.js",
+      "bytes": 8373,
+      "sha256": "2a85918ce13b70a7e8889806cec1b41961dfe9c4a0dedec0ee1d9696a7a7c1b8"
+    },
+    {
+      "path": "plugins/feiyu-memory/lib/index.js",
+      "bytes": 62976,
+      "sha256": "efb3649ed4357104133480b9bc121fc84f959c58249f59db0b417fa2623ca21a"
+    },
+    {
+      "path": "plugins/feiyu-memory/lib/injection.js",
+      "bytes": 18799,
+      "sha256": "4c4887f75f7b9ce03fdd00665958857e19fd0626e367d3a257f67a0f55173a30"
+    },
+    {
+      "path": "plugins/feiyu-memory/lib/search.js",
+      "bytes": 4956,
+      "sha256": "2669ce16192097805ba51e38981bdaf91f7537403925fdf3c6a73b1fde6ff5aa"
+    },
+    {
+      "path": "plugins/feiyu-memory/lib/store.js",
+      "bytes": 76943,
+      "sha256": "3f790383503f4d38824c6d109643e9af1f8ae1fc6f4fa9197469cfeab960f791"
+    },
+    {
+      "path": "plugins/feiyu-memory/lib/summary.js",
+      "bytes": 15640,
+      "sha256": "8fe7ab0a7917d99a97fe58c240a79c7b26e13eec536c39fc798b86ad1d145700"
+    },
+    {
+      "path": "plugins/feiyu-memory/lib/text.js",
+      "bytes": 3745,
+      "sha256": "c23a862c510e4102567c3e6ba2ff3060af9c6041d1edc8205fadc42b10435bd6"
+    },
+    {
+      "path": "plugins/feiyu-memory/lib/types/index.d.ts",
+      "bytes": 12251,
+      "sha256": "fdc02b93dff9cd97c7e6347101bd97b901937e633ff472a071c8e326be421325"
+    },
+    {
+      "path": "plugins/feiyu-memory/locale/en.json",
+      "bytes": 220,
+      "sha256": "b1e258f87ffcbc32112ccef13a40709e926da812a18ecc69502a5dc9252d3286"
+    },
+    {
+      "path": "plugins/feiyu-memory/locale/zh.json",
+      "bytes": 207,
+      "sha256": "b779ed38889d88ed6d5f060fe9013c5f88513d3baaad28f82ae1fbd5c0ffbbfb"
+    },
+    {
+      "path": "plugins/feiyu-memory/package.json",
+      "bytes": 1219,
+      "sha256": "51bc616be2952982c65965f522d1164b65853962aa66e2641470834ecad64e3c"
+    },
+    {
+      "path": "plugins/feiyu-memory/pnpm-lock.yaml",
+      "bytes": 921,
+      "sha256": "d207e2ec27946f9162d1af7bdab6c5f3acf7c960d8f5233e376ec9022a0ab71a"
+    },
+    {
+      "path": "plugins/feiyu-memory/scripts/preview-long-term.mjs",
+      "bytes": 3206,
+      "sha256": "d7f58af0b5ca7b7e1af021f803a09ad922e64fe0c99d65d5fa5c77829c3043ba"
+    },
+    {
+      "path": "plugins/feiyu-memory/scripts/repair-summary-index.mjs",
+      "bytes": 1117,
+      "sha256": "bc0be2ab99abb7e8a3907078907598920ab3e1b91d52f7a58ea245a7376ed89c"
+    },
+    {
+      "path": "plugins/feiyu-memory/scripts/snapshot-child.mjs",
+      "bytes": 753,
+      "sha256": "b823462451c80d023ca9ccf12b9aefb31c09c2d4d5e61a5fbdda3b3748230eb4"
+    },
+    {
+      "path": "plugins/feiyu-memory/test/client.test.js",
+      "bytes": 10332,
+      "sha256": "38b0d43e3039b11a29e7417989cf955c5f81e6ff7c16c34fee12c79d945b2837"
+    },
+    {
+      "path": "plugins/feiyu-memory/test/compaction-sync.test.js",
+      "bytes": 4032,
+      "sha256": "89c389bc9df77d5685e94eaf82b728cc2aa61c11ed38d4258c234c1ebf5cc88f"
+    },
+    {
+      "path": "plugins/feiyu-memory/test/cross-session-sync.test.js",
+      "bytes": 2776,
+      "sha256": "c45ddcb4412dc94a5331b3b6a1b70cdb9dcbde9d136e41baa656ea96ece8335b"
+    },
+    {
+      "path": "plugins/feiyu-memory/test/curation.test.js",
+      "bytes": 2702,
+      "sha256": "8c21b9494d67ac53fdd5fe5d6f2f0ce6ee513b71ebf9a71bb228f543ee8ae37b"
+    },
+    {
+      "path": "plugins/feiyu-memory/test/curator-apply.test.js",
+      "bytes": 4452,
+      "sha256": "47f3445c0993f4b2eb90785320f6c14e308049d30e980fe6d94cf5affd8104c6"
+    },
+    {
+      "path": "plugins/feiyu-memory/test/curator-threshold.test.js",
+      "bytes": 2325,
+      "sha256": "7682729c22ee134326db5986ab0ef8aa95be1c84a794ce35f0206e98e6873ac2"
+    },
+    {
+      "path": "plugins/feiyu-memory/test/curator.test.js",
+      "bytes": 12844,
+      "sha256": "f4e2f870da9fbf1a91af156e4e07683d6bacff8b34926148c338e799d3d4d04f"
+    },
+    {
+      "path": "plugins/feiyu-memory/test/digest.test.js",
+      "bytes": 2031,
+      "sha256": "2d00f6fbb0137ce846d0818ca1fdbcc91dbf4d37af49e3c9d3f1a0ce01bb0592"
+    },
+    {
+      "path": "plugins/feiyu-memory/test/forget-tool.test.js",
+      "bytes": 4863,
+      "sha256": "69ca20a1cb8a8467751b0b6bf85a2b8b5e000f82770d6463f78ac25f5617294c"
+    },
+    {
+      "path": "plugins/feiyu-memory/test/forget.test.js",
+      "bytes": 12700,
+      "sha256": "453824bba7d3963d7324766a524f3819ec2382f23377b4deb20721d991eeab31"
+    },
+    {
+      "path": "plugins/feiyu-memory/test/full-snapshot-unlimited.test.js",
+      "bytes": 2686,
+      "sha256": "89c3a297d8414cfd1e24e08e3d082095c3464fc4597739d1028080423b48cdb6"
+    },
+    {
+      "path": "plugins/feiyu-memory/test/guard-injection.test.js",
+      "bytes": 8500,
+      "sha256": "0a5ba90edf60ad1f45752d4a19ad7f10a95a1bc8c9ddfeb0e6c5df86fbb3a204"
+    },
+    {
+      "path": "plugins/feiyu-memory/test/helpers.js",
+      "bytes": 1226,
+      "sha256": "201c7bc3e5279cb36f2492fc2e5149cbe5cb4186dacfca30e8935f2986377437"
+    },
+    {
+      "path": "plugins/feiyu-memory/test/index.test.js",
+      "bytes": 6586,
+      "sha256": "b056439cedb7284c29007c6788706cab22fbc4bf70b9b079794ffd62c2b0ef35"
+    },
+    {
+      "path": "plugins/feiyu-memory/test/injection-coalesce.test.js",
+      "bytes": 3488,
+      "sha256": "10ceaa2f0a6427d06fc0a2246f6d550a0e3db8cfaebb3b86cab15d5521633972"
+    },
+    {
+      "path": "plugins/feiyu-memory/test/injection.test.js",
+      "bytes": 3138,
+      "sha256": "c29e7835a3c897719adfd6f3fb5fbbd279a468982d54a23d8058e14b927ab5de"
+    },
+    {
+      "path": "plugins/feiyu-memory/test/isolation.test.js",
+      "bytes": 1994,
+      "sha256": "002a284d3ecf977823505304cf50ec8f0211f303f99ea432cee141bfc9059dbc"
+    },
+    {
+      "path": "plugins/feiyu-memory/test/long-session-sync.test.js",
+      "bytes": 3668,
+      "sha256": "62baf90529c79530659e12855bc9450f4f7b81d1822d334d2062374feb3d12e8"
+    },
+    {
+      "path": "plugins/feiyu-memory/test/long-term-curator.test.js",
+      "bytes": 7494,
+      "sha256": "ebc066e87a088213439098583a30bb09e54167c3d6bc5acdb0cd0a7d9c1c807d"
+    },
+    {
+      "path": "plugins/feiyu-memory/test/long-term.test.js",
+      "bytes": 7006,
+      "sha256": "1325930d61b4b6a1c549ca14edfef1fbf1c7d52ce866d50e55e2a94a084736f6"
+    },
+    {
+      "path": "plugins/feiyu-memory/test/manifest.test.js",
+      "bytes": 2871,
+      "sha256": "7215e688b5af9ff6aa99cf93527435bcf296421d0631d6a7b5fd85bdbf52d354"
+    },
+    {
+      "path": "plugins/feiyu-memory/test/persona.test.js",
+      "bytes": 2103,
+      "sha256": "905b3a3c8dc2d84755f69b7e7f3d076f9664521c384260060de48cef78c99504"
+    },
+    {
+      "path": "plugins/feiyu-memory/test/plugin.test.js",
+      "bytes": 6790,
+      "sha256": "9bc5bf00e9fdeff23ca48e33fd69bc8ff2e7b04667753059f3b9cc5d74ddd81b"
+    },
+    {
+      "path": "plugins/feiyu-memory/test/reliability.test.js",
+      "bytes": 10565,
+      "sha256": "283cc2b31adc0b668d4078e4f6ac0423357a3e570fbd1a212eaacb8ae23ba457"
+    },
+    {
+      "path": "plugins/feiyu-memory/test/restart-sync.test.js",
+      "bytes": 2861,
+      "sha256": "cf72870e7aa8348f63327078e6ab6ab41ff414a6ba11c587df20661b4ffb8ec0"
+    },
+    {
+      "path": "plugins/feiyu-memory/test/routes.test.js",
+      "bytes": 12752,
+      "sha256": "7c5ec4c06340c50d033f441386f332bfcc5912b1125d3013033ba938ac247294"
+    },
+    {
+      "path": "plugins/feiyu-memory/test/search.test.js",
+      "bytes": 3177,
+      "sha256": "9109647861f4a78c7939a34763e7d418d0a6a6f6489a7248bb10327f3b31e452"
+    },
+    {
+      "path": "plugins/feiyu-memory/test/snapshot.test.js",
+      "bytes": 3088,
+      "sha256": "30d273e6677100cc0e7d813b1283b0b4d3693c7289dd8efc45e737e3c49e94e9"
+    },
+    {
+      "path": "plugins/feiyu-memory/test/store.test.js",
+      "bytes": 7482,
+      "sha256": "9cec7f8167a97d61b31f016027b60790555d29b3d8e267296fb62a69760484c0"
+    },
+    {
+      "path": "plugins/feiyu-memory/test/sync-structural.test.js",
+      "bytes": 3243,
+      "sha256": "e974f58416d0cd781de991dbff3044cf342837a770da34a92ecfd9959c443fdd"
+    },
+    {
+      "path": "plugins/feiyu-memory/test/trace-tool.test.js",
+      "bytes": 5057,
+      "sha256": "f27d3847c1b4ea3422755f4a67d8fd511fccb5fe721aa6ad09c323ee4946bf8d"
+    },
+    {
+      "path": "plugins/feiyu-memory/test/trace-verification.test.js",
+      "bytes": 5025,
+      "sha256": "e9485d5ec1c74ed1feab448c37aa8f3918d722ebd0552b821421305e15249145"
+    },
+    {
+      "path": "plugins/feiyu-memory/test/update.test.js",
+      "bytes": 8393,
+      "sha256": "a748db578f6d7733df4119355f4f276bb5309390d7a7b421fc3b719090c1331e"
+    }
+  ]
+}

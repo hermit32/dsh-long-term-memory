@@ -1,0 +1,56 @@
+# TEMPLATE ONLY — ask your DSH to personalize paths before installation.
+# Do NOT apply directly to an existing profile.
+# dsh-memory-feiyu bundle patch
+# 只安装到当前 desktop profile；插件自身还会按 privateWorkspace 做运行时隔离。
+
+- insert:
+    - id: dsh-memory-feiyu
+      name: dsh-memory-feiyu
+      config:
+        privateWorkspace: 'C:\DSH\PrivateWorkspace'
+        memoryDir: 'C:\DSH\PrivateWorkspace\.dsh\memories-feiyu'
+        globalMemoryDir: ''
+        scopeMaxBytes: 12000
+        scopeMaxTokens: 4000
+        maxBytes: 14000
+        globalMaxBytes: 2000
+        consolidateMaxBytes: 36000
+        consolidateMaxTokens: 8192
+        curateMaxBytes: 64000
+        curateMaxTokens: 2000
+        curateEntriesShown: 80
+        keepSummaryVersions: 30
+        rawArchiveMaxBytes: 300000
+        maxActiveMemories: 200
+        injectIndex: true
+        indexMaxBytes: 40960
+        indexMaxTokens: 12000
+        contextBudgetRatio: 0.08
+        contextBudgetHardRatio: 0.10
+        fallbackContextTokens: 8192
+        autoSummary: true
+        maxSnapshotsPerSession: 8
+        digestMaxBytes: 12000
+        digestMaxTokens: 4000
+        fullSyncChangedEntries: 12
+        fullSyncOnDelete: true
+        longTermSynthesisMaxBytes: 64000
+        longTermSynthesisMaxTokens: 16000
+        longTermMaxOutputTokens: 4000
+        longTermMode: 'off'
+        curatorBackfill: false
+        curatorEnabled: false
+        curatorThresholdTurns: 20
+        curatorSessionsPerBatch: 8
+        curatorBatchesPerRun: 8
+        curatorTurnsPerSlice: 8
+        curatorMaxBytes: 64000
+        curatorMaxTokens: 12000
+        curatorBatchBytes: 32000
+        curatorBatchTokens: 6000
+        curatorMaxOutputTokens: 2000
+        curatorTimeoutMs: 120000
+        curatorEntriesShown: 80
+        curatorRunsPerHour: 3
+        curatorStartupDelayMs: 60000
+        curatorCooldownMs: 60000

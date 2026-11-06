@@ -1,242 +1,47 @@
-# INSTALL.md — 长期记忆解决方案的部署与升级（v0.2.1）
+# 安装 / 更新 Feiyu Memory 1.3.0
 
-> **状态：安装步骤未在干净机器上完整验证。** 本文的每一步都对应本机实际运行状态，
-> 但“从零开始照做一遍”没有做过。请按 `review/REPRODUCTION_AUDIT.md` 的清单逐项
-> 自行验证；任何一步失败都先停下来核对版本，不要跳过。
+面向 **Windows + DeepSeek Harness Desktop**；跨平台兼容与全新机器一键安装尚未独立验收。推荐先让 DSH 阅读 [INSTALL_FOR_DSH.md](INSTALL_FOR_DSH.md) 自动适配。
 
-## 0. 版本基线
+## 准备
 
-| 项 | 本机实测值 |
-| --- | --- |
-| DSH | `@deepseek-ai/dsh-desktop-runtime` **0.2.1-rc.3**（desktop profile） |
-| Host 协议版本 | 4（`desktop-runtime.json`） |
-| 捆绑 Node / pnpm | 24.21.0 / 11.28.5 |
-| 本包测试用 Node | 24.22.1 |
-| 记忆插件 | `dsh-memory-scoped` 0.2.1（上游 fork） |
-| 会话删除插件 | `@liuyu-f/dsh-plugin-session-cascade-delete` 1.0.6-local.1（上游 1.0.6 修改版） |
-| IM 插件 | `@xmanrui/dsh-im` 5.6.0 |
+- 能正常运行的 DSH Desktop（维护者在 runtime `0.2.2-rc.1` 做过隔离在线验收）。
+- 可用的 LLM 服务；Curator 使用 DSH 自带模型路由，不需要在仓库里填 API key。
+- 一个私人工作区，例如 `C:\DSH\PrivateWorkspace`。这是**示例路径**，不是强制目录。
+- Node.js 与插件依赖以当前 DSH 安装器/插件管理器实际要求为准。
 
-DSH 处于 pre-1.0，小版本之间可能破坏兼容。不要假设 0.2.0/0.2.1 的其他 rc 版本行为一致。
+## 全新安装
 
-## 1. 第三方插件
+1. 克隆或下载仓库，把 `plugins/feiyu-memory/` 放到一个稳定的本地路径，如 `C:\DSH\plugins\dsh-memory-feiyu`；不要放入 `.dsh/memories-feiyu` 数据目录。
+2. 让 DSH 检查当前使用的 profile 中是否已加载其它长期记忆插件。**不要同时加载注册同名 `memory_*` 工具的两个插件。**
+3. 复制 `plugins/feiyu-memory/cordis.patch.yml` 的插件配置作为参考，按本机修改：
 
-| 插件 | 用途 | 是否随包分发 |
-| --- | --- | --- |
-| `@xmanrui/dsh-im` 5.6.0 | IM 接入（本方案只验证微信） | **否**，按上游说明安装 |
-| `dsh-memory-scoped` | 长期记忆 | 是（`plugins/memory/`，上游 `dsh-memory` 的 fork） |
-| `@liuyu-f/dsh-plugin-session-cascade-delete` | 会话删除 | 是（`plugins/session-manager/`，上游 1.0.6 的**本地修改版**） |
-
-> **会话删除插件必须用本地修改版。** 用 npm 包名或插件管理器“添加插件”安装，会得到
-> 上游 1.0.6，其中没有 `session_delete` 的工作区隔离，也不会广播
-> `session-delete/deleted`。安装方式见 `plugins/session-manager/README.md`
-> 的「安装（本地修改版）」。
-
-可选组件（推理强度滑块、公开行情 Skill、本地 UI 插件、看门狗）**不在本候选包内**，
-见 `README.md` 的「可选组件」。
-
-## 2. 放置插件目录
-
-把两个插件目录放到一个**不在工作区内部**的稳定路径，例如：
-
-```text
-C:\Workspaces\plugins\dsh-memory-scoped\
-C:\Workspaces\plugins\dsh-plugin-session-cascade-delete\
-```
-
-不要放进 `<工作区>\.dsh\`（那会被当成工作区数据备份/泄露）。不要直接复制整个
-`~/.dsh`。
-
-## 3. 注册插件（profile 层）
-
-编辑 `<DSH_HOME>/profiles/<profile>/package.json`：
-
-```json
-{
-  "dependencies": {
-    "dsh-memory-scoped": "link:C:/Workspaces/plugins/dsh-memory-scoped",
-    "@liuyu-f/dsh-plugin-session-cascade-delete": "link:C:/Workspaces/plugins/dsh-plugin-session-cascade-delete"
-  },
-  "dsh": {
-    "profile": {
-      "bundles": [
-        "@deepseek-ai/dsh-base",
-        "@deepseek-ai/dsh-web-app",
-        "dsh-memory-scoped",
-        "@liuyu-f/dsh-plugin-session-cascade-delete"
-      ]
-    }
-  }
-}
-```
-
-然后在 profile 目录执行依赖安装。推荐直接用插件管理器 UI 的“添加插件”输入**本地
-目录**，让 DSH 自己写 `package.json` 并建立 `node_modules` 链接。命令行方式（路径以
-你的安装位置为准，DSH 桌面版把 CLI 放在 `resources\runtime\cli\bin\dsh.cmd`）：
-
-```powershell
-dsh plugin --profile desktop add "file:C:\Workspaces\plugins\dsh-memory-scoped"
-dsh plugin --profile desktop add "file:C:\Workspaces\plugins\dsh-plugin-session-cascade-delete"
-```
-
-必须使用 `file:` 本地路径或 `link:` 依赖。**不要**执行
-`dsh plugin add @liuyu-f/dsh-plugin-session-cascade-delete`：那会从 npm 安装上游
-未修改版，没有工作区隔离与 `session-delete/deleted` 事件。
-
-本机没有独立的 `pnpm.cmd` 可执行文件（pnpm 由 DSH 内部管理），所以不要照抄其他
-项目的 `pnpm install` 步骤。
-
-> 不要同时保留 `dsh-memory` 和 `dsh-memory-scoped` 两个 bundle：它们会注册同名工具。
-
-## 4. 写入策略配置
-
-把 `examples/config.example.yml` 的两段合并进
-`<DSH_HOME>/profiles/<profile>/cordis.patch.yml`，至少改这三处：
-
-- `privateWorkspace`：你的私人工作区**绝对路径**（必须是精确路径，不能留空）。
-- `memoryDir`：记忆数据目录（不要把记忆放进会被 Git 跟踪的仓库目录）。
-- `curateEveryTurns`：私人工作区**所有 owned 根会话未整理有效回合合计**的阈值，默认 20（不是单会话计数）。
-
-## 5. 指定私人工作区
-
-`privateWorkspace` 是唯一安全边界：
-
-- 只比较完整路径，子目录不匹配；
-- 只对**根会话**生效，子代理默认被排除；
-- 留空 = 插件加载但记忆功能完全关闭（注入为空、工具报错）。
-
-在 DSH 里新建/指定工作区时，工作区路径必须与 `privateWorkspace` 完全一致。
-
-## 6. 配置人设
-
-1. 复制 `examples/AGENTS.local.example.md` 到私人工作区根目录，改名为
-   `AGENTS.local.md`，替换成你自己的角色。
-2. 复制 `examples/CLAUDE.example.md` 到同一目录，改名为 `CLAUDE.md`（记忆规则
-   与 persona 分开）。
-3. 全局规则放 `<DSH_HOME>/AGENTS.md`（参考 `examples/AGENTS.global.example.md`）。
-
-`AGENTS.local.md` / `CLAUDE.local.md` 是 DSH 原生支持的本地覆盖文件（见
-`examples/AGENTS.local.example.md` 顶部说明），不是本项目的自定义加载器。
-
-## 7. 初始化长期记忆
-
-1. 确认 `seedFromAgentsMd: false`（避免把人设写进记忆）。
-2. 首次启动后检查 `<memoryDir>/diagnostics.json`：
-   - `toolsRegistered` 应包含 14 个 `memory_*`；
-   - `configAlerts` 为空；
-   - `privateWorkspace` 与你配置的一致。
-3. 摘要在第一次 consolidation 时生成；在此之前注入为空是正常的。
-4. 手动验证：在私人工作区根会话里调用 `memory_add`，再 `memory_search`。
-   在**其他工作区**调用同一工具应当被拒绝。
-
-## 8. 打开记忆控制台
-
-1. 打开 DSH 设置 → **私人工作区记忆**（插件设置页）。
-2. 页面对应路由 `/_dsh/memory/console` 与 `/_dsh/memory/settings`，两者都要求
-   已认证的 DSH 页面会话。
-3. 如果页面不出现：检查客户端 bundle id 是否等于包名 `dsh-memory-scoped`，
-   并确认 profile 的 bundle 列表里有它。
-4. 用 curl 直接访问时应得到 401/403 或 503（没有 connection 服务时），**不应**
-   返回记忆内容。
-
-## 9. 启用会话管理
-
-会话归档与删除是两部分：
-
-- **归档/恢复**：DSH 原生能力（侧栏会话操作），本包不提供。
-- **永久删除**：`plugins/session-manager`。安装并重启后：
-  - UI：会话标题旁垃圾桶按钮、侧栏行菜单“删除会话”；
-  - 工具：`session_delete`（模型可调用，但只在调用方工作区内生效）。
-- 删除会级联删除该会话拥有的**子代理会话**；fork 分支不会。
-- 删除成功会广播 `session-delete/deleted`，记忆插件据此清理 pending/owned，
-  **不删除任何长期记忆条目**。
-- 如果不想让删除级联子代理，在 patch 里设 `deleteSubagents: false`。
-
-## v0.2.0 升级与整理触发（重要）
-
-本版增加**工作区级统一累计 20 轮**：各私人根会话的未整理回合数求和；触发后按会话独立读取事件、更新游标及来源记录。新建私人根会话 `startup` 也可触发；打开旧会话 `resume` 不应触发。最多一次连续处理 64 个会话，剩余进入 deferred。
-
-**已安装旧的私人化记忆插件的用户**：先按 [`plugins/memory/MIGRATION.md`](plugins/memory/MIGRATION.md) 备份 `<memoryDir>`、停止旧插件并清理其 loader row，**不要让两个插件同时使用同一个记忆目录**。先在测试 profile 验证，再迁移生产配置。独立 MCP 有额外的作用域白名单限制，见 [`plugins/memory/README.md`](plugins/memory/README.md)。
-
-**微信 `/new` 即时整理是可选补丁功能**：使用 [patches/README.md](patches/README.md) 和 `node patches/apply-dsh-im-patch.mjs`，脚本会修改本机已安装的 `@xmanrui/dsh-im` 源码及 bundle，升级后可能失效；**先备份、检查目标版本，不要把此命令当成自动安装步骤**。未安装补丁时，正常的 20 轮阈值和新建私人会话触发逻辑仍存在。本项目尚未验证真实微信 `/new` 端到端动作。
-
-## 10. 接入微信
-
-1. 安装 `@xmanrui/dsh-im@5.6.0`（MIT，
-   <https://github.com/xmanrui/dsh-im>）。本包不分发该插件。
-2. 在 DSH 设置里启用微信通道，按上游提示扫码登录。
-3. 把私人工作区绑定为该 bot 的唯一工作区（`<DSH_HOME>/integrations/` 下的
-   `workspaces.json` 由插件写入；不要在别的工区手改）。
-4. 用另一个微信号发一条消息验证收发。
-5. **只验证了微信。** 上游插件还支持飞书、企微、钉钉、QQ、Telegram、WhatsApp、
-   Slack、Discord、Matrix；这些在本方案中**未验证**，不要宣称可用。
-
-## 11. 工作区 A / B 发送单向通知
-
-1. 把 `scripts/notify/` 整个目录复制到私人工作区的固定位置（例如
-   `<私人工作区>\.dsh\assistant\`）。
-2. 复制 `notify-config.example.json` → `notify-config.json`，填 `appExe`、
-   `botId`、`targetId`。
-3. 复制 `workspace-labels.example.json` → `workspace-labels.json`。
-4. 在工作区 A、工作区 B 里执行：
-
-   ```powershell
-   powershell.exe -NoProfile -ExecutionPolicy Bypass -File "<私人工作区>\.dsh\assistant\notify.ps1" -Workspace "工作区 A" -Title "任务完成" -Message "结果见 <路径>"
+   ```yaml
+   privateWorkspace: 'C:\DSH\PrivateWorkspace'
+   memoryDir: 'C:\DSH\PrivateWorkspace\.dsh\memories-feiyu'
+   globalMemoryDir: ''
+   curatorThresholdTurns: 20
+   curatorBackfill: false
+   curatorEnabled: false
+   longTermMode: 'off'
    ```
 
-5. 返回值：`{"sent":true}` / `{"sent":false,"queued":true}` /
-   `{"sent":false,"duplicate":true}`。
-6. 失败补发：`-FlushQueue`（当前工作区）或 `-FlushQueue -AllWorkspaces`。
+4. 在当前 DSH profile 中通过插件管理器的**本地路径安装**（`file:` / `link:`）注册 `dsh-memory-feiyu`，确保 `dsh.profile.bundles` 中只出现一份。CLI 细节可能随 DSH 版本变化，请先执行当前安装器的 `--help` 或使用 GUI，不要直接照抄旧版 0.2.1 的命令。
+5. 首次加载先检查 Host 运行状态、12 个工具、设置页与私有工作区隔离；无现有数据时建立空库。确认可用后开启 `curatorEnabled: true`、`longTermMode: apply`。如果已有长期记忆，先预览，取得主人确认后再 apply。
+6. 现在可以正常聊天：所有根会话的未整理完整回合累计 20 轮后自动 Curator 整理；平时记忆变化也会及时同步，不必新建会话。
 
-注意：通知脚本**不提供**回复能力；微信回复始终由私人工作区处理。
+## 从旧版本升级 / 新设备迁移
 
-## 12. 确认工作区隔离
+- **只复制插件不等于迁移记忆。** 此仓库只提供公开代码，不包含任何人的私密数据。
+- 备份旧设备上的 `memoryDir` **整个目录**（包括 `raw_memories.md`、`memory_summary.md`、`summary_history/`、`curator.json`、`state.json`、`tombstones.jsonl` 等），以及所用 profile 的相关配置；备份应放在私密位置，不要提交 GitHub。
+- 新设备先安装同版本插件，确认数据目录和工作区路径配置正确，再由 DSH 在停写状态下迁移数据；跨设备会话 ID 与旧游标可能不匹配，首次应保留 `curatorBackfill: false`，避免旧对话重复整理。
+- 从 1.2.x 升级 1.3.0 时，历史索引可能需要用 `scripts/repair-summary-index.mjs` **先只读检查、备份后再 --apply**；不要直接覆盖有问题的索引。
+- 人设文件和微信通道配置另行迁移，**不属于记忆插件自动同步的数据**。
 
-1. 在私人工作区根会话问：“列出你能看到的 memory_* 工具”——应有 14 个。
-2. 在工作区 A、工作区 B 问同一句——应看不到这些工具（或被 `restrict` 隐藏）。
-3. 在工作区 A、工作区 B 直接要求“调用 `memory_add` 记住 X”——应报错
-   `memory: only available in the private workspace root session`。
-4. 在私人工作区派生子代理，让子代理调用 `memory_add`——应被拒绝（子代理不是根会话）。
-5. 检查注入：工作区 A、工作区 B 的提示词里不应出现 `## Workspace memory` 段。
-6. 检查磁盘：`<memoryDir>/scopes/` 下只应有私人工作区的那一个 `ws-<hash>` 目录
-   有内容。
-7. 会话删除：在工作区 A 调 `session_delete` 删除私人工作区的 session id——应被
-   拒绝（`different workspace`），且不产生任何文件操作。
+## 最小验收与回滚
 
-## 13. 运行测试
+- 核对插件 `packageVersion: 1.3.0`、12 tools、Host cookie 认证、无启动错误。
+- 核对实际 private workspace、数据目录、Curator 20 轮阈值、已备份的旧数据。
+- 有问题先关闭自动写入，再按备份恢复 profile / 插件；如已有新记忆，不要直接用旧备份覆盖它们。
+- 不要为验证而故意运行大量真实模型调用；一个简单的工具查询与自然聊天足以开始使用。
 
-```powershell
-cd plugins\memory;               node --test
-cd plugins\session-manager;      node --test
-cd tests;                        .\run-all.ps1
-```
-
-核心自动化测试使用 Node；少数测试涉及 DSH peer 包会跳过。独立 MCP 直接调用与补丁矩阵使用临时目录；完整 Curator acceptance harness 需要可解析的 DSH peer 包。
-验收套件里的 Windows 路径作用域用例只在 Windows 上执行；其他平台会跳过并改跑
-可移植路径用例（原因见 `review/TEST_RESULTS.md`）。
-
-**平台状态**：本次维护在 Windows / Node 24.22.1 上复核为 192 项（189 通过、3 跳过）；v0.2.0 候选包曾在 Linux / Node 22.16.0 独立复测为 187 项，历史记录见 [`review/v0.2.0/TEST-REPORT.md`](review/v0.2.0/TEST-REPORT.md)。**并不等于 Linux/macOS DSH Desktop 集成可用，也不等于干净环境已复现。**
-
-## 14. 卸载 / 安全回滚
-
-**插件**
-
-1. 从 profile `bundles` 移除 `dsh-memory-scoped` 与
-   `@liuyu-f/dsh-plugin-session-cascade-delete`。
-2. 从 `dependencies` 删除对应 link 行，重新 `pnpm install`。
-3. 从 `cordis.patch.yml` 删除两段策略配置。
-4. 重启 DSH。
-
-**数据**
-
-- 记忆数据在 `<memoryDir>`；卸载插件不会删除它。需要彻底清除时手动删除该目录。
-- 删除会话不可撤销；长期记忆条目不会随会话删除而消失。
-
-**通知**
-
-- 删除 `notify-config.json` 即失去发送能力；工作区里的 `.dsh-notify` 只是本地队列
-  与去重状态，可直接删除。
-- IM 绑定在 `<DSH_HOME>/integrations/` 下，按上游插件文档解绑；不要用本包的脚本
-  操作它。
-
-**最短回滚路径**：先移除 bundle（停止写入与注入），保留数据目录，确认没有异常后
-再决定是否删除数据。不要在插件仍挂载时删除 `<memoryDir>`。
+更多实现细节见 [ARCHITECTURE.md](ARCHITECTURE.md)、[STATUS.md](STATUS.md)。

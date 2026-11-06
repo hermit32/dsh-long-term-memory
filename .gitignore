@@ -97,3 +97,13 @@ out/
 .vscode/
 .idea/
 *.code-workspace
+
+# Feiyu Memory 1.3.0 private runtime data — do not publish
+**/.dsh/
+**/memories-feiyu/
+**/curator.json
+**/tombstones.jsonl
+**/revisions.jsonl
+**/parse-diagnostics.json
+**/state.json.bak
+**/index.backup-*.json

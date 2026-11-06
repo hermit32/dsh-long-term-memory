@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Feiyu memory",
+    "description": "Two-layer memory for the Feiyu workspace: short-term facts plus AI-synthesized long-term understanding, with retrieval, locks, versions and rollback."
+  }
+}
