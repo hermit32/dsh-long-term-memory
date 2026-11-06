@@ -61,8 +61,8 @@
     },
     {
       "path": "plugins/feiyu-memory/lib/config.js",
-      "bytes": 7691,
-      "sha256": "3968a611ba0e0cec83f7ae369a0b2f4330c24ca424c13bd74bd39e35c90269e3"
+      "bytes": 8454,
+      "sha256": "520c3347bb4566ce2e67bdc302787fb813d342d6c23312b86f30074749554736"
     },
     {
       "path": "plugins/feiyu-memory/lib/curator.js",
@@ -231,8 +231,8 @@
     },
     {
       "path": "plugins/feiyu-memory/test/isolation.test.js",
-      "bytes": 1994,
-      "sha256": "002a284d3ecf977823505304cf50ec8f0211f303f99ea432cee141bfc9059dbc"
+      "bytes": 2594,
+      "sha256": "9fb51907cc1751c0f587908fc2f7935b1c7e038b2b893d8680e53f028451e61d"
     },
     {
       "path": "plugins/feiyu-memory/test/long-session-sync.test.js",

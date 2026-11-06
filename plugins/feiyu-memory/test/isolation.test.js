@@ -13,6 +13,14 @@ test('只匹配私人工作区根目录及其子目录', () => {
   assert.equal(isWorkspacePath('X:\\其他工作区', root), false);
   assert.equal(isWorkspacePath('C:\\Other', root), false);
   assert.equal(isWorkspacePath(undefined, root), false);
+
+  // POSIX 工作区在 Linux / macOS / CI 上同样按路径边界判定（不依赖宿主平台）。
+  const posixRoot = '/home/runner/private-workspace';
+  assert.equal(isWorkspacePath('/home/runner/private-workspace', posixRoot), true);
+  assert.equal(isWorkspacePath('/home/runner/private-workspace/', posixRoot), true);
+  assert.equal(isWorkspacePath('/home/runner/private-workspace/sub/dir', posixRoot), true);
+  assert.equal(isWorkspacePath('/home/runner/private-workspace2', posixRoot), false);
+  assert.equal(isWorkspacePath('/home/runner/private-workspace/../other', posixRoot), false);
 });
 
 test('伪造相似路径不能绕过隔离', () => {

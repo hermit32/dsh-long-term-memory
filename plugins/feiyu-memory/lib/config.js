@@ -194,10 +194,20 @@ export function resolveContextBudget(contextWindow, config = DEFAULT_CONFIG) {
   };
 }
 
-/** 规范化路径，Windows 下大小写不敏感。 */
-function comparablePath(value) {
-  const resolved = path.resolve(String(value));
-  return process.platform === 'win32' ? resolved.toLowerCase() : resolved;
+// Windows 盘符绝对路径（`C:\...` 或 `C:/...`）在**任何平台**上都按 win32 语义比较，
+// 其余路径跟随宿主平台。这样同一份 profile 配置在 Windows / Linux / macOS 上判定一致，
+// 跨平台 CI 也能覆盖 Windows 路径用例（此前 Linux 上会因 path.resolve 用 POSIX 语义而误判）。
+const WINDOWS_ABSOLUTE = /^[A-Za-z]:[\\/]/;
+
+function pathFlavor(value) {
+  if (WINDOWS_ABSOLUTE.test(String(value ?? ''))) return path.win32;
+  return process.platform === 'win32' ? path.win32 : path.posix;
+}
+
+/** 规范化路径，win32 语义下大小写不敏感。 */
+function comparablePath(impl, value) {
+  const resolved = impl.resolve(String(value));
+  return impl === path.win32 ? resolved.toLowerCase() : resolved;
 }
 
 /**
@@ -208,12 +218,14 @@ function comparablePath(value) {
 export function isWorkspacePath(cwd, privateWorkspace) {
   if (typeof cwd !== 'string' || cwd === '') return false;
   if (typeof privateWorkspace !== 'string' || privateWorkspace === '') return false;
-  const target = comparablePath(cwd);
-  const root = comparablePath(privateWorkspace);
-  const relative = path.relative(root, target);
+  // 以 privateWorkspace 的风格为准，避免 cwd 被解析成另一平台语义。
+  const impl = pathFlavor(privateWorkspace);
+  const target = comparablePath(impl, cwd);
+  const root = comparablePath(impl, privateWorkspace);
+  const relative = impl.relative(root, target);
   if (relative === '') return true;
   if (relative.startsWith('..')) return false;
-  if (path.isAbsolute(relative)) return false;
+  if (impl.isAbsolute(relative)) return false;
   return true;
 }
 
@@ -225,5 +237,7 @@ export function isWorkspaceAgent(agent, privateWorkspace) {
 
 /** 供日志使用的工作区标签。 */
 export function workspaceLabel(privateWorkspace) {
-  return path.basename(path.resolve(privateWorkspace));
+  return pathFlavor(privateWorkspace).basename(
+    pathFlavor(privateWorkspace).resolve(String(privateWorkspace)),
+  );
 }
