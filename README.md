@@ -50,6 +50,7 @@ plugins/
   feiyu-memory/          # 1.3.0：当前主插件，12 个 memory_* 工具
   memory/                # v0.2.1：历史公开实现（dsh-memory-scoped）
   session-manager/       # 历史配套插件，可选
+  persona/               # 可选：人设样例（AGENTS.md + 大肥鱼人设.md），不会被自动加载
 INSTALL_FOR_DSH.md       # 供另一台 DSH 自主执行的安装交接书
 INSTALL.md               # Windows / DSH Desktop 安装及升级说明
 ARCHITECTURE.md          # 两层记忆的技术架构与数据流
@@ -57,9 +58,29 @@ STATUS.md                # 实际验收与仍未验证的边界
 THIRD_PARTY_NOTICES.md   # 第三方来源及许可提示
 ```
 
+## 本地验证（约 3 分钟）
+
+克隆后**必须先在插件目录装依赖**，再跑测试；跳过这一步会报
+`ERR_MODULE_NOT_FOUND: Cannot find package '@deepseek-ai/schemastery'`。
+
+```powershell
+git clone https://github.com/hermit32/dsh-long-term-memory
+cd dsh-long-term-memory\plugins\feiyu-memory
+pnpm install --frozen-lockfile     # 也可以用 npm install；只需要 @deepseek-ai/schemastery
+node --test                         # 1.3.0 主套件：178 项 / 177 通过 / 1 跳过 / 0 失败
+
+cd ..\..
+powershell -ExecutionPolicy Bypass -File .\tests\run-all.ps1      # 全部套件
+powershell -ExecutionPolicy Bypass -File .\tests\privacy-scan.ps1 # 隐私扫描，0 命中才通过
+```
+
+- `node --test` 必须在 `plugins/feiyu-memory` 里执行：那里才有 `package.json`、`pnpm-lock.yaml` 和 `test/`。
+- 只安装插件、不跑测试的使用者**不需要**手动 `pnpm install`：DSH 插件管理器会按 `package.json` 装依赖。
+- 唯一跳过的 1 项是"固定人设没有被写进长期记忆摘要"，它需要一份真实记忆库才能判断；没有本地记忆库时自动跳过，不算失败。
+
 ## 已知状态与边界
 
-- 维护者于 **2026-11-06** 将个性化 1.3.0 部署至 DSH Desktop，生产运行显示插件已加载、Curator 开启、阈值 20、无启动错误。此前 178 项自动化测试通过；隔离真实 DSH 完成 5×4 轮触发、真实模型总结、跨会话同步、手动压缩及 Web 进程重启演练。
+- 维护者于 **2026-11-06** 将个性化 1.3.0 部署至 DSH Desktop，生产运行显示插件已加载、Curator 开启、阈值 20、无启动错误。干净克隆可复现 **178 项 / 177 通过 / 1 跳过 / 0 失败**；隔离真实 DSH 完成 5×4 轮触发、真实模型总结、跨会话同步、手动压缩及 Web 进程重启演练。
 - **不保证其他机器零配置安装。** DSH 处于快速迭代期；全新安装、macOS/Linux、长时间压力测试与实际微信 `/new` 全链路仍需接收方验证。
 - **不要把生产记忆库提交到 GitHub**。此仓库不包含维护者的个人记忆、会话、密钥、`.dsh` 目录或备份。
 - AI 记忆会消耗模型 Token；20 轮通常是低频整理，具体费用取决于你使用的模型和上下文。

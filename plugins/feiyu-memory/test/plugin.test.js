@@ -192,6 +192,6 @@ test('插件在真实 store 上注册工具、执行读写并隔离其他工作�
 
   await assert.rejects(
     tools.get('memory_status').definition.execute({}, { agent: outside.agent }),
-    /只在大肥鱼工作区可用/,
+    /私人工作区/,
   );
 });

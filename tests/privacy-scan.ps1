@@ -53,7 +53,14 @@ function Test-CredentialExempt([string]$relative) {
 }
 
 $extensions = @('.js', '.mjs', '.cjs', '.json', '.md', '.yml', '.yaml', '.ps1', '.txt', '.ts', '.svg', '.gitignore', '.example')
+# Dependencies, VCS metadata and build output are not part of this package:
+# scanning them reports upstream maintainer emails and wastes time.
+$excludedDirs = '\\node_modules\\', '\\.git\\', '\\.pnpm-store\\', '\\dist\\', '\\coverage\\'
 $files = Get-ChildItem -LiteralPath $PackageRoot -Recurse -File | Where-Object {
+  $relativePath = $_.FullName.Substring($PackageRoot.Length)
+  $excluded = $false
+  foreach ($dir in $excludedDirs) { if ($relativePath -match $dir) { $excluded = $true; break } }
+  if ($excluded) { return $false }
   ($extensions -contains $_.Extension) -or
   ($_.Name -eq '.gitignore') -or
   ($_.Name -match '^(LICENSE|LICENCE|COPYING|NOTICE)$')
@@ -72,11 +79,24 @@ foreach ($file in $files) {
   for ($index = 0; $index -lt $lines.Length; $index += 1) {
     $line = $lines[$index]
     if ([string]::IsNullOrWhiteSpace($line)) { continue }
+    # SHA-256 digests (release manifests, evidence files) contain long digit runs
+    # that look like phone numbers; a match fully inside such a digest is not PII.
+    $hashSpans = @()
+    foreach ($hm in [regex]::Matches($line, '\b[0-9a-fA-F]{64}\b')) {
+      $hashSpans += ,@($hm.Index, ($hm.Index + $hm.Length))
+    }
     foreach ($category in $categories) {
       if ($credentialExempt -and ($category.Name -eq 'api-key' -or $category.Name -eq 'private-key')) { continue }
       $matches = [regex]::Matches($line, $category.Regex)
       foreach ($match in $matches) {
         $value = $match.Value
+        if ($category.Name -eq 'phone' -and $hashSpans.Count -gt 0) {
+          $insideHash = $false
+          foreach ($span in $hashSpans) {
+            if ($match.Index -ge $span[0] -and ($match.Index + $match.Length) -le $span[1]) { $insideHash = $true; break }
+          }
+          if ($insideHash) { continue }
+        }
         if ($category.Name -eq 'workspace-id' -and ($allowedWorkspaceIds -contains $value)) { continue }
         if ($category.Name -eq 'email' -and ($allowedEmails -contains $value.ToLowerInvariant())) { continue }
         if ($category.Name -eq 'session-uuid' -and ($allowedSessionIds -contains $value)) { continue }

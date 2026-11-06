@@ -11,15 +11,28 @@ $node = Get-Command node -ErrorAction SilentlyContinue
 if ($null -eq $node) { throw 'node is not on PATH (need Node >= 20.3)' }
 
 $suites = @(
-  [pscustomobject]@{ Name = 'memory';          Dir = (Join-Path $root 'plugins\memory');           Args = @('--test') },
-  [pscustomobject]@{ Name = 'session-manager'; Dir = (Join-Path $root 'plugins\session-manager');  Args = @('--test') },
-  [pscustomobject]@{ Name = 'acceptance';      Dir = (Join-Path $root 'tests');                    Args = @('--test') }
+  [pscustomobject]@{ Name = 'feiyu-memory';    Dir = (Join-Path $root 'plugins\feiyu-memory');    Args = @('--test'); Requires = (Join-Path $root 'plugins\feiyu-memory\node_modules\@deepseek-ai\schemastery') },
+  [pscustomobject]@{ Name = 'memory';          Dir = (Join-Path $root 'plugins\memory');           Args = @('--test'); Requires = $null },
+  [pscustomobject]@{ Name = 'session-manager'; Dir = (Join-Path $root 'plugins\session-manager');  Args = @('--test'); Requires = $null },
+  [pscustomobject]@{ Name = 'acceptance';      Dir = (Join-Path $root 'tests');                    Args = @('--test'); Requires = $null }
 )
 
 $results = @()
 foreach ($suite in $suites) {
   Write-Host ''
   Write-Host ("=== {0} ===" -f $suite.Name)
+  if ($suite.Requires -and -not (Test-Path -LiteralPath $suite.Requires)) {
+    Write-Host ("[skip] dependencies missing; run 'pnpm install --frozen-lockfile' in {0}" -f $suite.Dir)
+    $results += [pscustomobject]@{
+      Suite = $suite.Name
+      Tests = 'skipped'
+      Pass  = '-'
+      Fail  = '-'
+      Skip  = 'all'
+      Exit  = 0
+    }
+    continue
+  }
   Push-Location $suite.Dir
   try {
     $output = & node @($suite.Args) 2>&1

@@ -7,7 +7,13 @@
 - 能正常运行的 DSH Desktop（维护者在 runtime `0.2.2-rc.1` 做过隔离在线验收）。
 - 可用的 LLM 服务；Curator 使用 DSH 自带模型路由，不需要在仓库里填 API key。
 - 一个私人工作区，例如 `C:\DSH\PrivateWorkspace`。这是**示例路径**，不是强制目录。
-- Node.js 与插件依赖以当前 DSH 安装器/插件管理器实际要求为准。
+- 插件依赖 `@deepseek-ai/schemastery`：安装到 DSH profile 时由 DSH 插件管理器自动安装；只有**在源码目录跑测试**时才需要手动执行下面两步。
+
+  ```powershell
+  cd plugins\feiyu-memory
+  pnpm install --frozen-lockfile   # 或 npm install
+  node --test                      # 178 项 / 177 通过 / 1 跳过 / 0 失败
+  ```
 
 ## 全新安装
 

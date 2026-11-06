@@ -1,7 +1,8 @@
 {
-  "name": "Feiyu Memory 1.3.0 public adaptation",
-  "source": "candidate(1).zip",
-  "note": "Public paths sanitized; live production installation remains unchanged.",
+  "name": "Feiyu Memory 1.3.0 public release",
+  "source": "repository tree",
+  "generatedBy": "scripts/release-manifest.mjs",
+  "note": "清单覆盖发布相关文本文件；改动这些文件后请重新生成，并用 --verify 校验。",
   "files": [
     {
       "path": "ARCHITECTURE.md",
@@ -9,9 +10,19 @@
       "sha256": "7763f2a3b864d62cde777c1ae1128e3943787a5c8dc53a11767e37b99602c34b"
     },
     {
-      "path": "INSTALL.md",
-      "bytes": 3633,
-      "sha256": "9e51f756c264c306edcdf7898c2c671e91c67cd61df333610447003c86f51ab2"
+      "path": "docs/feiyu-memory-flow.md",
+      "bytes": 720,
+      "sha256": "856a7e3987789d2f5a047dd3fb9822aa6991aea4dcbdfce981eb8ab02e37185c"
+    },
+    {
+      "path": "docs/legacy/README.md",
+      "bytes": 635,
+      "sha256": "9f4ee8cccb3059c48c193e41d693404d041f0aa8a88e37a11cc214cb7e919886"
+    },
+    {
+      "path": "docs/long-term-memory-flow.svg",
+      "bytes": 7291,
+      "sha256": "c0b10349074d2da20bc3ac6c0a88c0372c19bb237c5b271da255711353bf71a3"
     },
     {
       "path": "INSTALL_FOR_DSH.md",
@@ -19,34 +30,19 @@
       "sha256": "4bb8ec50c36aceb3c0fcd6ad332faa2d06305e8ec5c2fc0a76c5f573d94f8c35"
     },
     {
+      "path": "INSTALL.md",
+      "bytes": 3910,
+      "sha256": "08df9da16bd433ee38fd9d2ecea4a97a6e913f0b07ab6c37039e4e5c3e84ddd2"
+    },
+    {
+      "path": "LICENSE.md",
+      "bytes": 3218,
+      "sha256": "b8abef17e84b80dd3942a1fce74941d408ce3d563369936fc35251e5d5911367"
+    },
+    {
       "path": "LICENSING_1_3.md",
       "bytes": 937,
       "sha256": "dd1aeb0db7d8230f097afe4d4f179445ec9aa09ca5c179586904cffe30f70401"
-    },
-    {
-      "path": "README.md",
-      "bytes": 4628,
-      "sha256": "b9807d03a77162e9cad177db2f7d6cfe59996d9025f07fe11c530d7c4fb38243"
-    },
-    {
-      "path": "STATUS.md",
-      "bytes": 2063,
-      "sha256": "8777c1a9e8ca2f8ebff285e8edaa123b65bd25df2802a504aaa00f6b4b1702a4"
-    },
-    {
-      "path": "docs/feiyu-memory-flow.md",
-      "bytes": 720,
-      "sha256": "856a7e3987789d2f5a047dd3fb9822aa6991aea4dcbdfce981eb8ab02e37185c"
-    },
-    {
-      "path": "plugins/feiyu-memory/README.md",
-      "bytes": 12219,
-      "sha256": "54b78262817470b6dabe1b3680964e9738e3f2d7491678b0cc6296426dbada2f"
-    },
-    {
-      "path": "plugins/feiyu-memory/UPSTREAM_LICENSE_NOTICE.md",
-      "bytes": 841,
-      "sha256": "7400f83fb18877d8864299d444daf2294a9653770f9a5c5685ffae251163c790"
     },
     {
       "path": "plugins/feiyu-memory/cordis.patch.yml",
@@ -134,6 +130,11 @@
       "sha256": "d207e2ec27946f9162d1af7bdab6c5f3acf7c960d8f5233e376ec9022a0ab71a"
     },
     {
+      "path": "plugins/feiyu-memory/README.md",
+      "bytes": 12991,
+      "sha256": "020d882ef80fcb194d2ac051501bcc65658a790e5c30fed1d84ed9f8107a8965"
+    },
+    {
       "path": "plugins/feiyu-memory/scripts/preview-long-term.mjs",
       "bytes": 3206,
       "sha256": "d7f58af0b5ca7b7e1af021f803a09ad922e64fe0c99d65d5fa5c77829c3043ba"
@@ -190,8 +191,8 @@
     },
     {
       "path": "plugins/feiyu-memory/test/forget-tool.test.js",
-      "bytes": 4863,
-      "sha256": "69ca20a1cb8a8467751b0b6bf85a2b8b5e000f82770d6463f78ac25f5617294c"
+      "bytes": 4848,
+      "sha256": "552d728f491ab04d6463f060d75e4d5425bd23f47ea16e1d95a98d8dc84743c1"
     },
     {
       "path": "plugins/feiyu-memory/test/forget.test.js",
@@ -255,13 +256,13 @@
     },
     {
       "path": "plugins/feiyu-memory/test/persona.test.js",
-      "bytes": 2103,
-      "sha256": "905b3a3c8dc2d84755f69b7e7f3d076f9664521c384260060de48cef78c99504"
+      "bytes": 2727,
+      "sha256": "a0048c320b396ef07874e4812e4f7dfb005c1208a9ed248062d29f0fdcfdf243"
     },
     {
       "path": "plugins/feiyu-memory/test/plugin.test.js",
-      "bytes": 6790,
-      "sha256": "9bc5bf00e9fdeff23ca48e33fd69bc8ff2e7b04667753059f3b9cc5d74ddd81b"
+      "bytes": 6775,
+      "sha256": "5edf5b7e6975042a8473f5e96fb69a9aa5fdd6afcf0928b17204b63a404a79df"
     },
     {
       "path": "plugins/feiyu-memory/test/reliability.test.js",
@@ -300,8 +301,8 @@
     },
     {
       "path": "plugins/feiyu-memory/test/trace-tool.test.js",
-      "bytes": 5057,
-      "sha256": "f27d3847c1b4ea3422755f4a67d8fd511fccb5fe721aa6ad09c323ee4946bf8d"
+      "bytes": 5042,
+      "sha256": "e9eeb82a38c72bd35293a343c89bae8d67508f10073936005d5fcc5bbb20b9f9"
     },
     {
       "path": "plugins/feiyu-memory/test/trace-verification.test.js",
@@ -312,6 +313,71 @@
       "path": "plugins/feiyu-memory/test/update.test.js",
       "bytes": 8393,
       "sha256": "a748db578f6d7733df4119355f4f276bb5309390d7a7b421fc3b719090c1331e"
+    },
+    {
+      "path": "plugins/feiyu-memory/UPSTREAM_LICENSE_NOTICE.md",
+      "bytes": 841,
+      "sha256": "7400f83fb18877d8864299d444daf2294a9653770f9a5c5685ffae251163c790"
+    },
+    {
+      "path": "plugins/persona/AGENTS.md",
+      "bytes": 4957,
+      "sha256": "040a0b1bdbf8ced3068e8892abf550adc7191cb0d9ccbe3fec1b1b57edb6a176"
+    },
+    {
+      "path": "plugins/persona/README.md",
+      "bytes": 1614,
+      "sha256": "6154ad55faccb32ce58d333e1d14f65c3ef9f5ef88a91627cb39469ab62716f3"
+    },
+    {
+      "path": "plugins/persona/大肥鱼人设.md",
+      "bytes": 6577,
+      "sha256": "b8be89dcb51188be41f9d1c872b96ba0fe0cc5777e7c01e74cd799161cbd600f"
+    },
+    {
+      "path": "README.md",
+      "bytes": 5914,
+      "sha256": "648ec2effbd38af2948e3a3f4b57045b62cc20e1432153763041fb0675b8a8dd"
+    },
+    {
+      "path": "scripts/release-manifest.mjs",
+      "bytes": 4763,
+      "sha256": "929da190acf299f5ede0674cb939851033d0da2f67f5dadc1cb88850d7808c64"
+    },
+    {
+      "path": "STATUS.md",
+      "bytes": 2316,
+      "sha256": "12fb3ea7589d4820592d9c7f7696315611c68011b35d8289e095d5666a3940d1"
+    },
+    {
+      "path": "tests/acceptance/isolation.test.mjs",
+      "bytes": 10002,
+      "sha256": "5451c17a776fa682103b60ad15857eab87b1a4942c8c1a3995ca9b44225953bb"
+    },
+    {
+      "path": "tests/check-package-refs.ps1",
+      "bytes": 4583,
+      "sha256": "3c8611c6196f04c105f3f746780b14932124b2f734274be63ed2568f807cd231"
+    },
+    {
+      "path": "tests/privacy-scan.ps1",
+      "bytes": 6706,
+      "sha256": "e3739136025649156ff19e6cd33df3ac1f7887329efd9942c944da1285c1d84e"
+    },
+    {
+      "path": "tests/README.md",
+      "bytes": 3334,
+      "sha256": "9240be4f5f57bcffc3b24cc54141d6730445f1297bebbcc87dde3ce5759646ff"
+    },
+    {
+      "path": "tests/run-all.ps1",
+      "bytes": 2994,
+      "sha256": "0e192b0659e698e1016f39442d722344ac6f6270d5a313871bfc33187e3205ab"
+    },
+    {
+      "path": "THIRD_PARTY_NOTICES.md",
+      "bytes": 4898,
+      "sha256": "ac1bf343adccce4025553ea0babce0b6b4139695a5eb644d5826ffd8a14b9807"
     }
   ]
 }

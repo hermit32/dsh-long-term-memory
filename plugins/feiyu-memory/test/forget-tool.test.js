@@ -123,6 +123,6 @@ test('三个新工具在其他工作区一律拒绝', async (t) => {
     ['memory_restore', { id }],
     ['memory_summary_rollback', { version: '1' }],
   ]) {
-    await assert.rejects(() => call(name, args, outside), /只在大肥鱼工作区可用/);
+    await assert.rejects(() => call(name, args, outside), /私人工作区/);
   }
 });

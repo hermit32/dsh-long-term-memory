@@ -171,8 +171,19 @@ Host 侧 Config 使用 `@deepseek-ai/schemastery`；设置页使用 `dsh-client-
 
 ## 测试
 
+依赖只有 `@deepseek-ai/schemastery`，用锁文件安装后即可离线跑：
+
 ```powershell
-node --test
+pnpm install --frozen-lockfile   # 或 npm install；本目录就是 package.json 所在处
+node --test                      # 178 项 / 177 通过 / 1 跳过 / 0 失败
 ```
+
+不安装依赖直接 `node --test`，所有用例会以
+`ERR_MODULE_NOT_FOUND: Cannot find package '@deepseek-ai/schemastery'` 失败——这不是插件坏了，是没装依赖。
+需要 Node >= 20.3（`node --test` 与 `import.meta.dirname`）。
+
+唯一跳过的 1 项是 `固定人设没有被写进长期记忆摘要`：它要读真实记忆库
+（`<workspace>/.dsh/memories-feiyu/memory_summary.md`），仓库里没有，自动跳过。
+人设样例在 [`../persona/`](../persona/)，缺失时相关用例同样跳过。
 
 当前基线：178 项测试通过（含数据可靠性、删除/回滚、长期锁定/遗忘、索引修复、同轮合并、长会话持续同步、跨会话同步、完整快照无累计上限、压缩后重注入、重启恢复、Curator 20 轮阈值、Curator 两阶段与首次启用基线、fail-closed 接口）。真实模型预览及生产上线验收由维护者在私人环境完成；原始日志及用户数据不随包发布。

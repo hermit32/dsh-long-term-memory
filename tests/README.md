@@ -13,9 +13,14 @@ cd tests
 
 | 套件 | 命令 | 覆盖 |
 | --- | --- | --- |
+| feiyu-memory | `node --test`（`plugins/feiyu-memory`） | 1.3.0 主插件：178 项（两层记忆、Curator 两阶段、同步/压缩/重启、接口 fail-closed、索引与回滚） |
 | memory | `node --test`（`plugins/memory`） | 存储、锁、摘要、属性归属、控制台、设置、鉴权、接线结构 |
 | session-manager | `node --test`（`plugins/session-manager`） | 工作区归属、父链、模型工具隔离 |
 | acceptance | `node --test`（`tests/`） | 发布声明本身：隔离、删除清理、鉴权、空 curator、精确 scrub |
+
+> **feiyu-memory 套件需要先装依赖**：`cd plugins\feiyu-memory; pnpm install --frozen-lockfile`
+> （或 `npm install`）。没装时 `run-all.ps1` 会把该套件标记为 `skipped` 而不是失败，
+> 直接运行 `node --test` 则会报 `ERR_MODULE_NOT_FOUND: @deepseek-ai/schemastery`。
 
 > 验收套件里的 **Windows 路径作用域哈希** 用例只在 Windows 上执行；其他平台会跳过，
 > 并改跑基于临时目录的可移植路径用例。原因见该文件顶部的注释和
