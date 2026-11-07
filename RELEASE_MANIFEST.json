@@ -26,13 +26,13 @@
     },
     {
       "path": "INSTALL_FOR_DSH.md",
-      "bytes": 4130,
-      "sha256": "4bb8ec50c36aceb3c0fcd6ad332faa2d06305e8ec5c2fc0a76c5f573d94f8c35"
+      "bytes": 4360,
+      "sha256": "dd2c728d7e144cbdba07603fdbea83de5c12762f5c8fb73006f4061aa7c494b5"
     },
     {
       "path": "INSTALL.md",
-      "bytes": 3910,
-      "sha256": "08df9da16bd433ee38fd9d2ecea4a97a6e913f0b07ab6c37039e4e5c3e84ddd2"
+      "bytes": 3938,
+      "sha256": "709ce8eb11e2fdf64bfa2a7d1f0ca5a718c9bef2e6bdd976042af2fd5b3fd22c"
     },
     {
       "path": "LICENSE.md",
@@ -336,8 +336,8 @@
     },
     {
       "path": "README.md",
-      "bytes": 5914,
-      "sha256": "648ec2effbd38af2948e3a3f4b57045b62cc20e1432153763041fb0675b8a8dd"
+      "bytes": 6073,
+      "sha256": "1145f4a7c4e74ed7be6d3267e20bfb1ad394f154d083ad64c863413159bfdfb8"
     },
     {
       "path": "scripts/release-manifest.mjs",
@@ -346,8 +346,8 @@
     },
     {
       "path": "STATUS.md",
-      "bytes": 2316,
-      "sha256": "12fb3ea7589d4820592d9c7f7696315611c68011b35d8289e095d5666a3940d1"
+      "bytes": 2468,
+      "sha256": "f34e4fd286f31a58de867875185491ee87fa49e138aa196025a1de3a8ba1c249"
     },
     {
       "path": "tests/acceptance/isolation.test.mjs",

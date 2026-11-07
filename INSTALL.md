@@ -1,6 +1,6 @@
 # 安装 / 更新 Feiyu Memory 1.3.0
 
-面向 **Windows + DeepSeek Harness Desktop**；跨平台兼容与全新机器一键安装尚未独立验收。推荐先让 DSH 阅读 [INSTALL_FOR_DSH.md](INSTALL_FOR_DSH.md) 自动适配。
+**仅支持 Windows + DeepSeek Harness Desktop。** Linux/macOS 不在支持范围；全新 Windows 机器一键安装尚未独立验收。推荐先让 DSH 阅读 [INSTALL_FOR_DSH.md](INSTALL_FOR_DSH.md) 自动适配。
 
 ## 准备
 

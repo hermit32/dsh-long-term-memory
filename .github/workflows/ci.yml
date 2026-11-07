@@ -7,42 +7,6 @@ on:
   workflow_dispatch:
 
 jobs:
-  node-tests:
-    name: node --test (${{ matrix.suite }})
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - suite: feiyu-memory
-            dir: plugins/feiyu-memory
-            install: true
-          - suite: memory
-            dir: plugins/memory
-            install: false
-          - suite: session-manager
-            dir: plugins/session-manager
-            install: false
-          - suite: acceptance
-            dir: tests
-            install: false
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-      - uses: pnpm/action-setup@v4
-        if: matrix.install
-        with:
-          version: 10
-      - name: pnpm install
-        if: matrix.install
-        working-directory: ${{ matrix.dir }}
-        run: pnpm install --frozen-lockfile
-      - name: node --test
-        working-directory: ${{ matrix.dir }}
-        run: node --test
-
   release-checks:
     name: 发布自检（Windows）
     runs-on: windows-latest
