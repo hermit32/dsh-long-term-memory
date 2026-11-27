@@ -23,6 +23,11 @@ test('插件清单声明 bundle patch 和入口', async () => {
 
 test('默认配置模板包含全部预算字段与演示工作区路径', async () => {
   const patch = await readFile(path.join(root, 'cordis.patch.yml'), 'utf8');
+  for (const file of ['cordis.patch.yml', 'examples/config.example.yml']) {
+    const config = await readFile(path.join(root, file), 'utf8');
+    assert.match(config, /^\s*contextBudgetRatio: 0\s*$/m);
+    assert.match(config, /^\s*contextBudgetHardRatio: 0\s*$/m);
+  }
   for (const needle of [
     "privateWorkspace: 'C:\\demo\\workspace'",
     "memoryDir: 'C:\\demo\\workspace\\.dsh\\memories-feiyu'",
@@ -39,8 +44,6 @@ test('默认配置模板包含全部预算字段与演示工作区路径', async
     'injectIndex: true',
     'indexMaxBytes: 40960',
     'indexMaxTokens: 12000',
-    'contextBudgetRatio: 0.08',
-    'contextBudgetHardRatio: 0.10',
     'fallbackContextTokens: 8192',
     'digestMaxBytes: 12000',
     'digestMaxTokens: 4000',

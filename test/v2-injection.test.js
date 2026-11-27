@@ -71,7 +71,7 @@ test('浮动核心注入不突破上下文预算：预算很小时先收缩核�
     entries: ACTIVE,
     coreItems,
     contextWindow: 20000,
-    config: { privateWorkspace: 'C:/demo/workspace' },
+    config: { privateWorkspace: 'C:/demo/workspace', contextBudgetRatio: 0.08, contextBudgetHardRatio: 0.10 },
   });
   assert.ok(byteLength(normal.text) <= normal.contextBudget.bytes, `${byteLength(normal.text)} <= ${normal.contextBudget.bytes}`);
   assert.ok(estimateTokens(normal.text) <= normal.contextBudget.tokens);
@@ -84,7 +84,7 @@ test('浮动核心注入不突破上下文预算：预算很小时先收缩核�
     entries: ACTIVE,
     coreItems,
     contextWindow: 4000,
-    config: { privateWorkspace: 'C:/demo/workspace' },
+    config: { privateWorkspace: 'C:/demo/workspace', contextBudgetRatio: 0.08, contextBudgetHardRatio: 0.10 },
   });
   assert.equal(tiny.index.shown, 0);
   assert.equal(tiny.core.shown, 0);

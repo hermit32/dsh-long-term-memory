@@ -22,9 +22,9 @@
 | `indexMaxBytes` ⚡ | 40960 | 短期索引上限（0 = 不限） |
 | `indexMaxTokens` ⚡ | 12000 | 同上，token 计 |
 | `injectIndex` ⚡ | true | 是否注入短期索引 |
-| `contextBudgetRatio` | 0.08 | 按模型窗口比例算的上限，上限 0.08（0 = 不限） |
-| `contextBudgetHardRatio` | 0.10 | 硬上限，范围 [0, 0.10]；两项均大于 0 时不得小于前一项 |
-| `fallbackContextTokens` | 8192 | 读不到模型窗口时用的回退值 |
+| `contextBudgetRatio` | 0 | 默认不按模型窗口比例封顶；需要时可与硬上限一起设为 0.08 / 0.10 |
+| `contextBudgetHardRatio` | 0 | 默认关闭；启用比例预算时两个比例均应为正数，硬上限不得小于前一项，最大 0.10 |
+| `fallbackContextTokens` | 8192 | 仅启用比例预算且读不到模型窗口时使用 |
 | `digestMaxBytes` / `digestMaxTokens` | 12000 / 4000 | 单条增量注入上限（**不是**会话累计上限） |
 
 ## 3. 容量与版本
@@ -121,6 +121,6 @@ privateWorkspace / memoryDir 必须是绝对路径
 | 只观察（推荐） | `longTermMode: off`、`curatorEnabled: false`、`dreamingEnabled: false`（随包 Dreaming 默认为 true，需显式关闭） |
 | Curator 预览不自动改长期记忆 | `curatorEnabled: true`、`longTermMode: preview`、`dreamingEnabled: false` |
 | 正式使用 | `longTermMode: apply` + `curatorEnabled: true` |
-| 小内存模型（8k 窗口） | `fallbackContextTokens: 4096`、`indexMaxTokens: 4000`、`indexMaxBytes: 12000` |
-| 大内存模型（128k+） | 可放大 `indexMaxBytes`，但保持 `contextBudgetRatio` 不变 |
+| 小内存模型（8k 窗口） | 可同时启用 `contextBudgetRatio: 0.08`、`contextBudgetHardRatio: 0.10`，并按需降低各层容量；`fallbackContextTokens` 按未知窗口场景调整 |
+| 大内存模型（128k+） | 保持两个比例为 0；按需调整独立容量，例如 `indexMaxBytes` |
 | 只想手动整理 | `curatorEnabled: false`、`dreamingEnabled: false`，只留工具调用 |

@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import path from 'node:path';
 import { DEFAULT_CONFIG, normalizeConfig, resolveContextBudget } from '../lib/config.js';
 import { buildSnapshot, renderIndex } from '../lib/injection.js';
 
@@ -24,16 +25,17 @@ test('0 = 不限：总预算返回 Infinity，不再按窗口比例封顶', () =
 });
 
 test('正数比例仍然按窗口计算', () => {
-  const budget = resolveContextBudget(128000, DEFAULT_CONFIG);
-  assert.equal(budget.tokens, Math.floor(128000 * DEFAULT_CONFIG.contextBudgetRatio));
+  const config = { ...DEFAULT_CONFIG, contextBudgetRatio: 0.08, contextBudgetHardRatio: 0.10 };
+  const budget = resolveContextBudget(128000, config);
+  assert.equal(budget.tokens, 10240);
   assert.equal(budget.source, 'model');
 });
 
 test('配置层接受 0（0 = 不限），不会因互斥校验拒绝', () => {
   const config = normalizeConfig({
     ...UNLIMITED,
-    privateWorkspace: 'X:\\test',
-    memoryDir: 'X:\\test\\mem',
+    privateWorkspace: path.resolve('test-workspace'),
+    memoryDir: path.resolve('test-workspace/mem'),
     globalMemoryDir: '',
   });
   assert.equal(config.coreMaxBytes, 0);

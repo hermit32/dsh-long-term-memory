@@ -294,7 +294,7 @@ globalMemoryDir: ''                      # 空 = 不用全局摘要
 | 全局摘要 | 2000 B | `globalMaxBytes` |
 | 摘要总计 | 14000 B | `maxBytes`，必须 ≥ 长期 + 全局 |
 | 短期索引 | 40960 B / 12000 tokens | `indexMaxBytes` / `indexMaxTokens`，0 = 不限 |
-| 上下文预算 | 实际窗口 **8%**，硬上限 **10%** | `contextBudgetRatio` / `contextBudgetHardRatio`；读不到窗口时回退 `fallbackContextTokens`（8192）；`contextBudgetRatio: 0` 取消按窗口比例封顶；独立容量保护仍适用 |
+| 上下文预算 | **0 / 0（默认关闭比例上限）** | `contextBudgetRatio` / `contextBudgetHardRatio`；需要时可同时设为 0.08 / 0.10；启用后读不到窗口才回退 `fallbackContextTokens`（8192）；独立容量保护仍适用 |
 | 单条增量注入 | 12000 B / 4000 tokens | `digestMaxBytes` / `digestMaxTokens`，**只约束单条消息** |
 | 会话内累计注入 | **不设上限** | 完整快照与增量同步都不再按会话累计次数限制（见下方说明） |
 | 短期容量 | 200 条 / 300 KB | `maxActiveMemories` / `rawArchiveMaxBytes` |
@@ -302,6 +302,8 @@ globalMemoryDir: ''                      # 空 = 不用全局摘要
 | 浮动核心 | 10 条 / 单条 600 B / 注入 1600 B | `coreMaxItems` / `coreItemMaxBytes` / `coreMaxBytes` |
 | Curator 单次输入 | 64000 B / 12000 tokens | `curatorMaxBytes` / `curatorMaxTokens` |
 | Dreaming 单次输入 | 48000 B / 12000 tokens | `dreamingMaxBytes` / `dreamingMaxTokens` |
+
+**已安装用户**：如果现有 profile 显式设置了非零比例，请将 `contextBudgetRatio` 和 `contextBudgetHardRatio` 都改为 `0` 并重新加载配置。更新插件不会自动覆盖自定义设置。
 
 **关于“会话累计上限”**：插件曾有“每会话最多注入 N 次”的累计上限，该功能已被主动移除，**不会恢复**。
 现在只有“单条消息容量保护”，长会话可以无限期持续同步；完整快照只在结构变化、删除、同轮变化过多、

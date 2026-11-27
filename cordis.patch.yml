@@ -35,8 +35,8 @@
         injectIndex: true
         indexMaxBytes: 40960
         indexMaxTokens: 12000
-        contextBudgetRatio: 0.08
-        contextBudgetHardRatio: 0.10
+        contextBudgetRatio: 0
+        contextBudgetHardRatio: 0
         fallbackContextTokens: 8192
         autoSummary: true
         maxSnapshotsPerSession: 8

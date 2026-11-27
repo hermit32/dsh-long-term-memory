@@ -3,6 +3,9 @@ import assert from 'node:assert/strict';
 import { formatIndexLine, renderIndex, buildSnapshot } from '../lib/injection.js';
 import { resolveContextBudget, normalizeConfig, DEFAULT_CONFIG } from '../lib/config.js';
 import { estimateTokens } from '../lib/text.js';
+import path from 'node:path';
+
+const PROPORTIONAL_BUDGET = { ...DEFAULT_CONFIG, contextBudgetRatio: 0.08, contextBudgetHardRatio: 0.10 };
 
 function entry(index, overrides = {}) {
   return {
@@ -67,32 +70,48 @@ test('索引预算为 0 时不输出任何条目', () => {
   assert.equal(result.text.includes('mem-00000001'), false);
 });
 
-test('上下文预算：8%、10% 硬上限与 8192 回退', () => {
-  const model = resolveContextBudget(128000, DEFAULT_CONFIG);
+test('默认关闭比例预算：已知或未知窗口均不触发比例封顶', () => {
+  assert.equal(DEFAULT_CONFIG.contextBudgetRatio, 0);
+  assert.equal(DEFAULT_CONFIG.contextBudgetHardRatio, 0);
+  for (const window of [16000, 128000, undefined]) {
+    const budget = resolveContextBudget(window);
+    assert.equal(budget.source, 'unlimited');
+    assert.equal(budget.tokens, Infinity);
+    assert.equal(budget.hardTokens, Infinity);
+  }
+  const entries = Array.from({ length: 200 }, (_, i) => entry(i + 1));
+  const snap = buildSnapshot({ entries, contextWindow: 16000 });
+  assert.equal(snap.index.shown, 200);
+  assert.ok(snap.index.bytes <= DEFAULT_CONFIG.indexMaxBytes);
+  assert.ok(snap.index.tokens <= DEFAULT_CONFIG.indexMaxTokens);
+});
+
+test('显式启用上下文预算：8%、10% 硬上限与 8192 回退', () => {
+  const model = resolveContextBudget(128000, PROPORTIONAL_BUDGET);
   assert.equal(model.tokens, 10240);
   assert.equal(model.bytes, 40960);
   assert.equal(model.hardTokens, 12800);
   assert.equal(model.source, 'model');
 
-  const fallback = resolveContextBudget(undefined, DEFAULT_CONFIG);
+  const fallback = resolveContextBudget(undefined, PROPORTIONAL_BUDGET);
   assert.equal(fallback.tokens, 8192);
   assert.equal(fallback.bytes, 32768);
   assert.equal(fallback.source, 'fallback');
 
-  const actualWindow = resolveContextBudget(1048576, DEFAULT_CONFIG);
+  const actualWindow = resolveContextBudget(1048576, PROPORTIONAL_BUDGET);
   assert.equal(actualWindow.tokens, 83886);
   assert.equal(actualWindow.hardTokens, 104857);
   assert.equal(actualWindow.source, 'model');
 
-  const tiny = resolveContextBudget(1000, DEFAULT_CONFIG);
+  const tiny = resolveContextBudget(1000, PROPORTIONAL_BUDGET);
   assert.equal(tiny.tokens, 80);
   assert.ok(tiny.tokens <= tiny.hardTokens);
 });
 
 test('配置校验拒绝摘要预算被挤占', () => {
   assert.throws(() => normalizeConfig({
-    privateWorkspace: 'C:/demo/workspace',
-    memoryDir: 'C:/demo/workspace/.dsh/memories-feiyu',
+    privateWorkspace: path.resolve('demo/workspace'),
+    memoryDir: path.resolve('demo/workspace/.dsh/memories-feiyu'),
     maxBytes: 1000,
     scopeMaxBytes: 12000,
     globalMaxBytes: 2000,
@@ -106,7 +125,7 @@ test('快照总量不超过实际上下文预算', () => {
     workspaceSummary: '工作区摘要：正在进行记忆系统重建。',
     entries,
     contextWindow: 128000,
-    config: { privateWorkspace: 'C:/demo/workspace' },
+    config: { ...PROPORTIONAL_BUDGET, privateWorkspace: 'C:/demo/workspace' },
   });
   assert.ok(snap.totalBytes <= snap.contextBudget.bytes);
   assert.ok(snap.totalTokens <= snap.contextBudget.tokens);
@@ -123,7 +142,7 @@ test('全局摘要预算不会被工作区摘要挤掉', () => {
     workspaceSummary: `工作区摘要：${'工'.repeat(30000)}`,
     entries: [],
     contextWindow: 128000,
-    config: { privateWorkspace: 'C:/demo/workspace' },
+    config: { ...PROPORTIONAL_BUDGET, privateWorkspace: 'C:/demo/workspace' },
   });
   assert.match(snap.text, /全局摘要关键句：这条必须保留。/);
   assert.ok(snap.summaries.globalBytes > 0);
@@ -138,7 +157,7 @@ test('窗口很小时索引按预算截断，整体不超预算', () => {
     workspaceSummary: '',
     entries,
     contextWindow: 16000,
-    config: { privateWorkspace: 'C:/demo/workspace' },
+    config: { ...PROPORTIONAL_BUDGET, privateWorkspace: 'C:/demo/workspace' },
   });
   assert.equal(snap.contextBudget.tokens, 1280);
   assert.ok(snap.totalBytes <= snap.contextBudget.bytes);
@@ -152,7 +171,7 @@ test('无法读取窗口时使用 8192 tokens 回退', () => {
     workspaceSummary: '',
     entries: [entry(1)],
     contextWindow: undefined,
-    config: { privateWorkspace: 'C:/demo/workspace' },
+    config: { ...PROPORTIONAL_BUDGET, privateWorkspace: 'C:/demo/workspace' },
   });
   assert.equal(snap.contextBudget.tokens, 8192);
   assert.equal(snap.contextBudget.source, 'fallback');

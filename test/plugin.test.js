@@ -113,7 +113,7 @@ test('volatile 配置引用能转换为运行时配置', async (t) => {
   const agent = fakeAgent(workspace);
   const status = JSON.parse(await tools.get('memory_status').definition.execute({}, { agent: agent.agent }));
   assert.equal(status.activeCount, 0);
-  assert.equal(status.contextBudget.source, 'fallback');
+  assert.equal(status.contextBudget.source, 'unlimited');
 });
 
 test('插件在真实 store 上注册工具、执行读写并隔离其他工作区', async (t) => {
@@ -179,8 +179,8 @@ test('插件在真实 store 上注册工具、执行读写并隔离其他工作�
   const status = JSON.parse(await tools.get('memory_status').definition.execute({}, { agent: inside.agent }));
   assert.equal(status.activeCount, 1);
   assert.equal(status.memoryDir, path.join(dir, 'memories'));
-  assert.equal(status.contextBudget.source, 'fallback');
-  assert.equal(status.contextBudget.tokens, 8192);
+  assert.equal(status.contextBudget.source, 'unlimited');
+  assert.equal(status.contextBudget.tokens, null); // JSON 序列化 Infinity 为 null
 
   const search = await tools.get('memory_search').definition.execute({
     query: '集成测试',
