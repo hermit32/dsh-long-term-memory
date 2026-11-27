@@ -1,43 +1,19 @@
-name: ci
-
+name: public-package-checks
 on:
   push:
     branches: [main]
   pull_request:
   workflow_dispatch:
-
+permissions:
+  contents: read
 jobs:
-  release-checks:
-    name: 发布自检（Windows）
+  checks:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: 隐私扫描
-        shell: pwsh
-        run: ./tests/privacy-scan.ps1
-      - name: package.json 引用检查
-        shell: pwsh
-        run: ./tests/check-package-refs.ps1
-      - name: RELEASE_MANIFEST 校验
-        run: node scripts/release-manifest.mjs --verify
-
-  all-suites:
-    name: tests/run-all.ps1
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10
-      - name: pnpm install
-        working-directory: plugins/feiyu-memory
-        run: pnpm install --frozen-lockfile
-      - name: run-all
-        shell: pwsh
-        run: ./tests/run-all.ps1
+      - run: node tests/privacy-scan.mjs .
+      - run: node tests/check-package.mjs
+      - run: node tests/check-demo-data.mjs

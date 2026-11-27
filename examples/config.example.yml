@@ -1,59 +1,92 @@
-# config.example.yml — profile patch fragment (EXAMPLE)
+# 配置示例：直接拿来试跑演示记忆库
 #
-# This is a *fragment* of the profile patch layer, not a complete Cordis
-# composition. Merge the rows you need into <DSH_HOME>/profiles/<profile>/cordis.patch.yml.
-# Replace every <PLACEHOLDER> and every example path before use.
+# 用法：
+#   1. 把本文件内容合并进你 profile 的 cordis.patch.yml（或作为 --patch overlay 传入）；
+#   2. 把 privateWorkspace 改成你自己的工作区绝对路径；
+#   3. memoryDir 指向 examples/demo-memory/memories-feiyu 的绝对路径（想从零开始就换个空目录）。
 #
-# YAML note: single-quoted strings keep backslashes literal on Windows.
+# 说明：privateWorkspace 必须是绝对路径；memoryDir 建议放在 privateWorkspace 之下，
+# 这样“记忆目录”和“可读工作区”一致，设置页不会因为跨目录而报工作区不匹配。
 
-# --- memory plugin: mount the bundle row -----------------------------------
-# The row id becomes the plugin's settings namespace. Keep it equal to the
-# package name so the client bundle and the settings form agree.
-- insert:
-    - id: dsh-memory-scoped
-      name: dsh-memory-scoped
-
-# --- memory plugin: the row that owns the policy ---------------------------
-# `privateWorkspace` is a security boundary: it must be the exact absolute path
-# of the one workspace allowed to use memory. Leave it empty to disable memory.
-- id: dsh-memory-scoped
+- id: dsh-memory-feiyu
+  name: dsh-memory-feiyu
   config:
-    privateWorkspace: 'C:\Workspaces\private'
-    memoryDir: 'C:\Workspaces\private\.dsh\memories-scoped'
-    scopedMemory: true
-    readOnlyScopes:
-      - global
-    seedFromAgentsMd: false
-    autoSummarize: true
-    # Per-session effective-turn threshold. 20 means "this session", not
-    # "the whole workspace".
-    curateEveryTurns: 20
-    curateMaxOps: 8
-    curateMaxAdds: 3
-    curateMaxBytes: 24000
-    curateEntriesShown: 80
-    curateMaxTokens: 2000
-    orphanGraceMs: 300000
-    flushOrphansOnStart: true
-    flushOrphansOnNewSession: true
-    captureSubagents: false
-    maxBytes: 3000
-    scopeMaxBytes: 1200
-    injectTokens: 1200
-    consolidateEvery: 5
-    consolidateMaxBytes: 12000
-    consolidateMaxTokens: 4096
-    maxActiveSummaries: 1
-    redactSecrets: true
+    # ---- 必填三件套 ----
+    privateWorkspace: 'X:/path/to/demo-workspace'
+    memoryDir: 'X:/path/to/dsh-memory-feiyu/examples/demo-memory/memories-feiyu'
+    globalMemoryDir: ''
 
-# --- session manager: mount the delete plugin bundle row -------------------
-- insert:
-    - id: session-delete
-      name: "@liuyu-f/dsh-plugin-session-cascade-delete"
+    # ---- 注入预算（0 = 不限）----
+    scopeMaxBytes: 12000
+    scopeMaxTokens: 4000
+    maxBytes: 14000
+    globalMaxBytes: 2000
+    indexMaxBytes: 40960
+    indexMaxTokens: 12000
+    injectIndex: true
+    contextBudgetRatio: 0.08
+    contextBudgetHardRatio: 0.10
+    fallbackContextTokens: 8192
 
-# --- session manager: policy ----------------------------------------------
-# deleteSubagents defaults to true. Set it to false if a delete should never
-# cascade into the subagent sessions a session owns.
-- id: session-delete
-  config:
-    deleteSubagents: true
+    # ---- 容量与版本 ----
+    maxActiveMemories: 200
+    rawArchiveMaxBytes: 300000
+    keepSummaryVersions: 30
+    autoSummary: true
+    fullSyncChangedEntries: 12
+    fullSyncOnDelete: true
+
+    # ---- Curator ----
+    curatorEnabled: false          # 先关掉：不自动改长期记忆
+    curatorThresholdTurns: 20
+    curatorSessionsPerBatch: 8
+    curatorBatchesPerRun: 8
+    curatorTurnsPerSlice: 8
+    curatorMaxBytes: 64000
+    curatorMaxTokens: 12000
+    curatorBatchBytes: 32000
+    curatorBatchTokens: 6000
+    curatorMaxOutputTokens: 2000
+    curatorTimeoutMs: 120000
+    curatorEntriesShown: 80
+    curatorRunsPerHour: 3
+    curatorStartupDelayMs: 60000
+    curatorCooldownMs: 60000
+    curatorDurabilityGate: true
+    curatorBackfill: false
+    longTermMode: 'off'            # off / preview / apply
+    longTermSynthesisMaxBytes: 64000
+    longTermSynthesisMaxTokens: 16000
+    longTermMaxOutputTokens: 4000
+
+    # ---- 有效命中与活跃度 ----
+    hitStatsMode: 'observe'        # observe 只统计；enforce 参与淘汰
+    usageHalfLifeDays: 30
+    usageDailyHitCap: 5
+    activityGraceHours: 24
+    usageCompactAfterLines: 2000
+
+    # ---- 浮动核心 ----
+    coreEnabled: true
+    coreMaxItems: 10
+    coreItemMaxBytes: 600
+    coreMaxBytes: 1600
+    coreMinSources: 2
+    coreOverlapThreshold: 0.6
+
+    # ---- Dreaming ----
+    dreamingEnabled: true
+    dreamingIntervalHours: 24
+    dreamingMinNewMemories: 6
+    dreamingHeatThreshold: 3
+    dreamingRunsPerDay: 2
+    dreamingMaxBytes: 48000
+    dreamingMaxTokens: 12000
+    dreamingMaxOutputTokens: 3000
+    dreamingTimeoutMs: 180000
+    dreamingCooldownMs: 300000
+    dreamingStartupDelayMs: 90000
+    dreamingCandidates: 60
+
+    # ---- 冷库 ----
+    archiveRecallLimit: 20

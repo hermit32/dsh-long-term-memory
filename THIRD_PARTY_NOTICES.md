@@ -1,81 +1,36 @@
-# THIRD_PARTY_NOTICES.md
+# 第三方声明
 
-本 v0.2.1 技术预览版包含第三方代码的修改版。逐项核对结果如下。许可证原文保留在各组件
-目录内；本文件只做索引与合规说明。
+本仓库自身代码以 [MIT](LICENSE) 发布。运行时唯一的直接依赖来自 DeepSeek Harness。
 
-## 1. 随包分发的组件
+## 直接依赖
 
-| # | 组件 | 版本 | 许可证 | 版权 | 本包中的位置 | 是否修改 | 再分发 |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| 1 | DeepSeek Harness（`@deepseek-ai/dsh-*`） | 0.2.1-rc.3 | MIT | Copyright (c) 2026 DeepSeek | 未分发；仅作为运行环境 | 否 | 不需要（未复制） |
-| 2 | `dsh-memory`（上游） | v0.5.0 / commit `15de1c7` | MIT | Copyright (c) 2026 dsh-memory contributors | `plugins/memory/` | **是**（fork） | 允许，保留 LICENSE |
-| 3 | `@liuyu-f/dsh-plugin-session-cascade-delete` | 1.0.6 | MIT | Copyright (c) 2026 liuyu-f；Copyright (c) 2026 lsz-asd | `plugins/session-manager/` | **是**（本地修改版） | 允许，保留 LICENSE |
-| 4 | `@xmanrui/dsh-im` | 5.6.0 | MIT | Copyright (c) 2026 xmanrui | 未分发；`INSTALL.md` 给出安装链接 | 否 | 不需要（未复制） |
+| 包 | 版本 | 许可证 | 版权 | 用途 |
+|---|---|---|---|---|
+| `@deepseek-ai/schemastery` | 3.19.0 | MIT | Copyright (c) 2021-present Shigma | 插件 `Config` schema 定义（`z.object`） |
 
-## 2. DeepSeek Harness
+## 间接依赖（由 schemastery 带入）
 
-- 上游：<https://github.com/deepseek-ai/deepseek-harness>
-- 本机实测版本：desktop runtime `0.2.1-rc.3`。
-- 本包**没有**复制 DSH 源码。文中引用的模块名（如
-  `@deepseek-ai/dsh-agent-instructions`）仅用于说明接口。
-- DSH 桌面应用本身由其发布方分发；MIT 许可适用于 npm 包。
+| 包 | 版本 | 许可证 | 版权 |
+|---|---|---|---|
+| `@deepseek-ai/cosmokit` | 1.9.0 | MIT | Copyright (c) 2021-present Shigma |
+| `@standard-schema/spec` | 1.1.0 | MIT | Copyright (c) 2024 Colin McDonnell |
 
-## 3. dsh-memory（记忆插件上游）
+## 关于 DSH 运行时
 
-- 上游：`haitang1/dsh-memory` v0.5.0，commit `15de1c7`。
-- 保留 `plugins/memory/LICENSE`（MIT，Copyright (c) 2026 dsh-memory
-  contributors）。
-- 修改说明：`plugins/memory/FORK-NOTES.md`（工作区隔离、按工作区统一累计回合触发、跨会话 curator、
-  provenance、控制台、P0 安全修复、匿名化改名）。
-- 本版包含公开候选的 README、CHANGELOG、DESIGN、ROADMAP 与测试/验收说明。具体 fork 范围见 FORK-NOTES.md。
+`@deepseek-ai/*` 包随 DeepSeek Harness 安装包分发。本仓库**不打包**这些依赖，也不修改它们。
 
-## 4. session-cascade-delete
+- 安装使用时，依赖由你的 DSH 安装提供（profile 的 `node_modules` 里通常已有）；
+- 单独跑测试时用 `node scripts/link-runtime-deps.mjs --from <DSH 的 node_modules>` 借用，不复制进仓库；
+- 因此本仓库的 `node_modules/` 永不入库（见 `.gitignore`）。
 
-- 上游：<https://github.com/liuyu-f/dsh-plugin-session-cascade-delete> 1.0.6。
-- 保留完整 `LICENSE`，其中包含 liuyu-f 与 lsz-asd 两条版权行；`package.json` 的
-  `author` / `contributors` 字段原样保留。
-- `icon.svg` 取自上游仓库（MIT），是本包中唯一的二进制矢量资源；不含个人数据。
-- 修改说明：`plugins/session-manager/README.md` 顶部“本地修改版”一节
-  （模型工具工作区隔离、`session-delete/deleted` 事件、测试、版本号匿名化）。
-- 包名保留上游 scope（`@liuyu-f/...`）是为了让 `cordis.patch.yml` 的加载行仍然
-  有效；`package.json` 已标记 `"private": true` 并移除 `publishConfig`，不会被
-  误发布到上游 npm scope。**本包没有**向任何 npm 包发布内容。
-- **安装提示**：必须用本地 `link:` / `file:` 安装。`dsh plugin add <包名>` 会安装
-  上游未修改版，见 README 顶部警告。
+如果你要再分发本插件，请一并保留上表的许可证与版权声明。
 
-## 5. dsh-im
+## 文档与素材
 
-- 上游：<https://github.com/xmanrui/dsh-im> 5.6.0。
-- 本包不分发该插件完整运行库；另提供针对上游 5.6.0 的**本地事件桥接补丁** `patches/`（含源代码 diff 和应用脚本），须保留上游 MIT 著作权及许可，不代表上游官方支持。
-- 只验证了微信通道；其他通道见 `STATUS.md` 的未验证清单。
+- 界面截图（`screenshots/`）由本项目在隔离环境中自行抓取，内容为虚构演示数据；
+- 演示数据（`examples/`）为本项目原创虚构内容，与任何真实个人无关；
+- 图标 `icon.svg` 为本项目原创。
 
-## 6. 未纳入的组件
+## 历史来源与许可
 
-### 6.1 可选组件（来源/许可证待核实，本候选包不收录）
-
-| 组件 | 状态 | 未纳入原因 |
-| --- | --- | --- |
-| `dsh-codex-effort-slider` 1.1.3（推理强度滑块） | MIT 文本存在；`package.json` 无 `repository` / `author` | 上游归属未核实；首版范围只收核心组件 |
-| `okx-cex-market` skill 1.4.3（公开行情 Skill） | `SKILL.md` 声明 MIT、作者 okx；原目录无独立 LICENSE | 需单独补 LICENSE/移植说明，首版不收录；作为可选 Skill 单独发布 |
-
-两者都**不在**本候选包内，`package.json`、测试脚本与文档也不再引用它们。
-后续如需纳入，应先补齐：来源确认、独立 LICENSE、修改说明与测试。
-
-### 6.2 因许可证不明确而排除
-
-| 组件 | 原因 |
-| --- | --- |
-| `@local/reply-chime` | `private: true`，无 LICENSE，无测试 → 许可证不明确 |
-| `@local/schedule-gate` | 同上 |
-| `@local/skills-panel` | 同上 |
-| 微信看门狗 / 自动恢复 | 计划任务已禁用，历史故障，无测试证据 → 许可证与可靠性都不满足 |
-
-## 7. 合规检查清单
-
-- [x] 每个被再分发的 MIT 组件都保留原始版权行与许可全文。
-- [x] 每个被修改的组件都有修改说明。
-- [x] 未复制 `node_modules` 中的依赖树。
-- [x] 未复制上游完整仓库，只取必要源码与测试。
-- [x] 许可证不明确的组件未纳入。
-- [x] 来源未完全核实的组件移出首版候选包。
-- [x] 本仓库原创部分署名为 `miyouchen52-bot`，见 `LICENSE.md`。
+保留旧版记忆系统的上游许可与归属，见 [UPSTREAM_LICENSE_NOTICE.md](UPSTREAM_LICENSE_NOTICE.md)。新版许可证不追溯修改历史版本的许可。

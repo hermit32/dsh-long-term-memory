@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "maxVersion": 1,
+  "entries": {
+    "1": {
+      "version": 1,
+      "file": "0001.md",
+      "hash": "b61de9cf22790ec64b99aff892e66bdf520ab9d3709324c5d5ac251f3e696f2d",
+      "bytes": 197,
+      "createdAt": "2026-11-26T21:30:00+08:00",
+      "mode": "auto",
+      "reason": "before-write",
+      "protected": false,
+      "locksHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  }
+}

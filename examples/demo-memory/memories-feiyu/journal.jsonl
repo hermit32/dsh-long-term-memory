@@ -1,0 +1,16 @@
+{"ts":"2026-11-27T03:23:08.745Z","op":"add","id":"mem-00000001","tagCount":2,"bytes":60,"sourceType":"manual"}
+{"ts":"2026-11-27T03:23:08.751Z","op":"add","id":"mem-00000002","tagCount":2,"bytes":69,"sourceType":"manual"}
+{"ts":"2026-11-27T03:23:08.754Z","op":"add","id":"mem-00000003","tagCount":1,"bytes":91,"sourceType":"manual"}
+{"ts":"2026-11-27T03:23:08.758Z","op":"add","id":"mem-00000004","tagCount":1,"bytes":69,"sourceType":"manual"}
+{"ts":"2026-11-27T03:23:08.761Z","op":"add","id":"mem-00000005","tagCount":1,"bytes":55,"sourceType":"manual"}
+{"ts":"2026-11-27T03:23:08.765Z","op":"add","id":"mem-00000006","tagCount":1,"bytes":69,"sourceType":"manual"}
+{"ts":"2026-11-27T03:23:08.768Z","op":"add","id":"mem-00000007","tagCount":1,"bytes":74,"sourceType":"manual"}
+{"ts":"2026-11-27T03:23:08.772Z","op":"add","id":"mem-00000008","tagCount":1,"bytes":71,"sourceType":"manual"}
+{"ts":"2026-11-27T03:23:08.775Z","op":"add","id":"mem-00000009","tagCount":1,"bytes":57,"sourceType":"manual"}
+{"ts":"2026-11-27T03:23:08.779Z","op":"add","id":"mem-00000010","tagCount":1,"bytes":54,"sourceType":"manual"}
+{"ts":"2026-11-27T03:23:08.783Z","op":"archive","id":"mem-00000009","reason":"capacity"}
+{"ts":"2026-11-27T03:23:08.786Z","op":"archive","id":"mem-00000010","reason":"manual"}
+{"ts":"2026-11-27T03:23:08.790Z","op":"add","id":"mem-00000011","tagCount":1,"bytes":36,"sourceType":"manual"}
+{"ts":"2026-11-27T03:23:08.794Z","op":"delete","id":"mem-00000011","reason":"用户要求清理","bytes":36}
+{"ts":"2026-11-27T03:23:08.814Z","op":"summary","mode":"auto","bytes":197,"reason":"","source":"","locks":0}
+{"ts":"2026-11-27T03:23:08.826Z","op":"summary","mode":"auto","bytes":802,"reason":"","source":"","locks":0}

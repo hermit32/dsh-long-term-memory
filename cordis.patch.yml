@@ -1,0 +1,94 @@
+# dsh-memory-feiyu bundle patch
+#
+# 只安装到当前 profile；插件自身还会按 privateWorkspace 做运行时隔离。
+#
+# ⚠️ 安装前必须改这三项，让它们指向你自己的私人工作区（其余值可以先用默认）：
+#   privateWorkspace  C:\demo\workspace   只允许这个目录（含子目录）读写记忆
+#   memoryDir          C:\demo\workspace\.dsh\memories-feiyu
+#   globalMemoryDir    C:\demo\workspace\.dsh\memories-feiyu\global  留空字符串 = 不用全局摘要
+#
+# 注释里的“0 = 不限”只对注入预算类字段成立；其余正整数字段填 0 会启动失败。
+
+- insert:
+    - id: dsh-memory-feiyu
+      name: dsh-memory-feiyu
+      config:
+        privateWorkspace: 'C:\demo\workspace'
+        memoryDir: 'C:\demo\workspace\.dsh\memories-feiyu'
+        globalMemoryDir: 'C:\demo\workspace\.dsh\memories-feiyu\global'
+        # 注入口径：单条长期记忆 / 全局摘要 / 合计
+        scopeMaxBytes: 12000
+        scopeMaxTokens: 4000
+        maxBytes: 14000
+        globalMaxBytes: 2000
+        consolidateMaxBytes: 36000
+        consolidateMaxTokens: 8192
+        # Curator 两阶段预算
+        curateMaxBytes: 64000
+        curateMaxTokens: 2000
+        curateEntriesShown: 80
+        # 容量与版本
+        keepSummaryVersions: 30
+        rawArchiveMaxBytes: 300000
+        maxActiveMemories: 200
+        # 索引注入
+        injectIndex: true
+        indexMaxBytes: 40960
+        indexMaxTokens: 12000
+        contextBudgetRatio: 0.08
+        contextBudgetHardRatio: 0.10
+        fallbackContextTokens: 8192
+        autoSummary: true
+        maxSnapshotsPerSession: 8
+        digestMaxBytes: 12000
+        digestMaxTokens: 4000
+        fullSyncChangedEntries: 12
+        fullSyncOnDelete: true
+        # 长期合成
+        longTermSynthesisMaxBytes: 64000
+        longTermSynthesisMaxTokens: 16000
+        longTermMaxOutputTokens: 4000
+        # off = 只生成预览不写生产；preview / apply 见 INSTALL.md「C. 启用自动整理」
+        longTermMode: 'off'
+        curatorBackfill: false
+        # 自动整理默认关闭：先按 INSTALL.md C 节观察一段时间再打开
+        curatorEnabled: false
+        curatorThresholdTurns: 20
+        curatorSessionsPerBatch: 8
+        curatorBatchesPerRun: 8
+        curatorTurnsPerSlice: 8
+        curatorMaxBytes: 64000
+        curatorMaxTokens: 12000
+        curatorBatchBytes: 32000
+        curatorBatchTokens: 6000
+        curatorMaxOutputTokens: 2000
+        curatorTimeoutMs: 120000
+        curatorEntriesShown: 80
+        curatorRunsPerHour: 3
+        curatorStartupDelayMs: 60000
+        curatorCooldownMs: 60000
+        curatorDurabilityGate: true
+        # v2.0：有效命中 / 活跃度 / 浮动核心 / Dreaming / 冷库
+        usageHalfLifeDays: 30
+        usageDailyHitCap: 5
+        activityGraceHours: 24
+        usageCompactAfterLines: 2000
+        coreEnabled: true
+        coreMaxItems: 10
+        coreItemMaxBytes: 600
+        coreMaxBytes: 1600
+        coreMinSources: 2
+        coreOverlapThreshold: 0.6
+        dreamingEnabled: true
+        dreamingIntervalHours: 24
+        dreamingMinNewMemories: 6
+        dreamingHeatThreshold: 3
+        dreamingRunsPerDay: 2
+        dreamingMaxBytes: 48000
+        dreamingMaxTokens: 12000
+        dreamingMaxOutputTokens: 3000
+        dreamingTimeoutMs: 180000
+        dreamingCooldownMs: 300000
+        dreamingStartupDelayMs: 90000
+        dreamingCandidates: 60
+        archiveRecallLimit: 20

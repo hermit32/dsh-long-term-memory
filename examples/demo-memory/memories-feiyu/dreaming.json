@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "updatedAt": "2026-11-26T21:20:00.000Z",
+  "lastRun": {
+    "runId": "dream-20261126-211000-7c1d",
+    "startedAt": "2026-11-26T21:10:00.000Z",
+    "finishedAt": "2026-11-26T21:20:00.000Z",
+    "reason": "interval",
+    "status": "applied",
+    "ops": {
+      "add": 1,
+      "update": 1,
+      "remove": 0
+    },
+    "coreAfter": 2,
+    "errors": []
+  },
+  "recentRuns": [
+    {
+      "runId": "dream-20261126-211000-7c1d",
+      "startedAt": "2026-11-26T21:10:00.000Z",
+      "finishedAt": "2026-11-26T21:20:00.000Z",
+      "reason": "interval",
+      "status": "applied",
+      "add": 1,
+      "update": 1,
+      "remove": 0,
+      "skipped": 2,
+      "coreAfter": 2,
+      "errors": [],
+      "snapshotDir": "dream/dream-20261126-211000-7c1d"
+    }
+  ],
+  "lastAppliedAt": "2026-11-26T21:20:00.000Z",
+  "sourceHash": "",
+  "sourceHashes": {},
+  "coreCount": 2,
+  "counters": {
+    "runs": 1,
+    "added": 1,
+    "updated": 1,
+    "removed": 0,
+    "skipped": 2,
+    "failed": 0
+  },
+  "lastError": "",
+  "promptVersion": 1
+}

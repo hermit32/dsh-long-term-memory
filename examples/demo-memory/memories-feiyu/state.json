@@ -1,0 +1,17 @@
+{
+  "version": 2,
+  "summaryVersion": 1,
+  "summaryMode": "auto",
+  "summaryHash": "8b187543aac9a20831d6aa8f42c939ad409ec236fdc1a9921761ca7f791fb4ec",
+  "totalAdded": 11,
+  "revisionSeq": 0,
+  "tombstones": [
+    {
+      "op": "delete",
+      "id": "mem-00000011",
+      "hash": "8c4e44a534ef7bdca23183dccca865d30b92130b35bfc4c09511c3326b916d04",
+      "at": "2026-11-26T21:30:00+08:00"
+    }
+  ],
+  "longTermForgotten": []
+}
